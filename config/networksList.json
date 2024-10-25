@@ -1,0 +1,33 @@
+{
+	"general": {
+		"project": "Deamon Bridge",
+		"version": "1.0"
+	},
+	"listeningNetwork": {
+		"networkName": "Sepolia",
+		"networkLongName": "Sepolia (testnet)",
+		"symbol": "SETH",
+		"RPC_URL": "https://rpc2.sepolia.org",
+		"testnet": true
+	},
+	"networks": [
+		{
+			"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
+			"networkName": "Optimism Sepolia",
+			"networkLongName": "OP Sepolia Testnet",
+			"networkPrivateKey": "OPSepolia_PRIVATE_KEY",
+			"symbol": "ETH",
+			"RPC_URL": "https://sepolia.optimism.io",
+			"testnet": true
+		},
+		{
+			"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
+			"networkName": "Arbitrum Sepolia",
+			"networkLongName": "Arbitrum Sepolia (testnet)",
+			"networkPrivateKey": "OPSepolia_PRIVATE_KEY",
+			"symbol": "ETH",
+			"RPC_URL": "https://arbitrum-sepolia.blockpi.network/v1/rpc/public ",
+			"testnet": true
+		}
+	]
+}

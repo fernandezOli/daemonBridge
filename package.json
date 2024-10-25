@@ -1,0 +1,29 @@
+{
+  "name": "deamon-bridge",
+  "version": "1.0",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "ethers": "^6.13.4",
+    "http": "^0.0.1-security",
+    "react-scripts": "^5.0.1"
+  },
+  "scripts": {
+    "start": "node deamonBridge.js",
+    "build": "react-scripts build",
+    "test": "node deamonBridge.js",
+    "eject": "react-scripts eject"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
