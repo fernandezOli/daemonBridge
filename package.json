@@ -9,9 +9,9 @@
     "react-scripts": "^5.0.1"
   },
   "scripts": {
-    "start": "node deamonBridge.js",
+    "start": "node daemonBridge.js",
     "build": "react-scripts build",
-    "test": "node deamonBridge.js",
+    "test": "node daemonBridge.js",
     "eject": "react-scripts eject"
   },
   "browserslist": {
