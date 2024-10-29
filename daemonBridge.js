@@ -1,11 +1,18 @@
 var http = require('http');
+const { exit } = require('process');
 
 const daemon = require('./daemon.js');
 
 // **** main ****
 
 // launch the daemon
-daemon();
+try {
+	daemon();
+} catch(error) {
+	console.error('ERROR lauching daemon [' + error.code + ']: ', error);
+	exit();
+}
+console.log("");
 
 const serverPort = 3000;
 

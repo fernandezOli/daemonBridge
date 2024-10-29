@@ -4,24 +4,41 @@
 		"version": "1.0"
 	},
 	"listeningNetwork": {
+		"nativeToken": false,
 		"networkName": "Sepolia",
 		"networkLongName": "Sepolia (testnet)",
 		"symbol": "SETH",
 		"RPC_URL": "https://rpc2.sepolia.org",
-		"testnet": true
+		"testnet": true,
+		"tokens": [
+			{
+				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
+				"tokenName": "LINK",
+				"contractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+				"toNetwork": "Optimism Sepolia",
+				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
+				"toToken": "LINK"
+			},
+			{
+				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
+				"tokenName": "LINK",
+				"contractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+				"toNetwork": "Arbitrum Sepolia",
+				"toTokenContractAddress": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
+				"toToken": "LINK"
+			}
+		]
 	},
 	"networks": [
 		{
-			"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 			"networkName": "Optimism Sepolia",
-			"networkLongName": "OP Sepolia Testnet",
+			"networkLongName": "Optimism Sepolia Testnet",
 			"networkPrivateKey": "OPSepolia_PRIVATE_KEY",
 			"symbol": "ETH",
 			"RPC_URL": "https://sepolia.optimism.io",
 			"testnet": true
 		},
 		{
-			"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
 			"networkName": "Arbitrum Sepolia",
 			"networkLongName": "Arbitrum Sepolia (testnet)",
 			"networkPrivateKey": "OPSepolia_PRIVATE_KEY",
