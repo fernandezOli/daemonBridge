@@ -6,6 +6,7 @@ const networkList = require('./config/networksList.json');
 
 let listeningNetworkProvider = null;
 let networkProvider = [];
+let tokensList = null;
 
 module.exports = async function () {
 	//console.log("-- loading daemon--");
@@ -49,6 +50,7 @@ function initProviders() {
 // Listening event
 function startListening() {
 	//console.log("-- start Listening --");
+	let tokenIndex = null;
 	try {
 		//listeningNetworkProvider.removeAllListeners();
 
@@ -59,21 +61,29 @@ function startListening() {
 		}
 
 		// tokens
-		const tokensList = networkList.listeningNetwork.tokens;
-		for (let i = 0; i < tokensList.length; i++) {
-			if (tokensList[i].listeningAddress === undefined || tokensList[i].listeningAddress === null || tokensList[i].listeningAddress === "0x")
-				continue;
+		tokensList = networkList.listeningNetwork.tokens;
+		for (tokenIndex = 0; tokenIndex < tokensList.length; tokenIndex++) {
+			if (tokensList[tokenIndex].listeningAddress === undefined ||
+				tokensList[tokenIndex].listeningAddress === null ||
+				tokensList[tokenIndex].listeningAddress === "0x") {
+					tokensList[tokenIndex].activated = false;
+					continue;
+			}
+			tokensList[tokenIndex].activated = true;
+			tokensList[tokenIndex].toNetworkIndex = findNetworkByName(tokensList[tokenIndex].toNetwork);
+
 			const filter = {
-				address: tokensList[i].contractAddress,
-				topics: [null, null, ethers.zeroPadValue(tokensList[i].listeningAddress,32)]
+				address: tokensList[tokenIndex].contractAddress,
+				topics: [null, null, ethers.zeroPadValue(tokensList[tokenIndex].listeningAddress,32)]
 			};
-			listeningNetworkProvider.on(filter, (log) => {
-				parseEvent(log, findNetworkByName(tokensList[i].toNetwork), tokensList[i].toTokenContractAddress);
-			});
-			console.log("Start listening for token " + tokensList[i].tokenName + " on " + tokensList[i].listeningAddress + " to " + tokensList[i].toNetwork + "/" + tokensList[i].toToken);
+
+			const _index = tokenIndex;
+			listeningNetworkProvider.on(filter, (log) => { parseEvent(log, _index); });
+			console.log("Start listening for token " + tokensList[tokenIndex].tokenName + " on " + tokensList[tokenIndex].listeningAddress + " to " + tokensList[tokenIndex].toNetwork + "/" + tokensList[tokenIndex].toToken);
 		}
 	} catch (error) {
-		console.error('ERROR startListening [' + error.code + ']: ', error);
+		if (tokenIndex !== null && tokensList !== null) console.error("ERROR start listening for token " + tokensList[tokenIndex].tokenName);
+		console.error('ERROR start listening [' + error.code + ']: ', error);
 		throw error;
 	}
 }
@@ -129,62 +139,86 @@ async function sendNativeToken(networkNum, to, amount) {
 
 // Parse log for tokens
 // struct log: transaction log
-// networkNum: network index in network list
-// TokenContractAddress: contract address of the token
-async function parseEvent(log, networkNum, TokenContractAddress) {
-	console.log("parseEvent[networkNum]: ", networkNum);
-	console.log("parseEvent[TokenContractAddress]: ", TokenContractAddress);
+// indexToken: token index
+async function parseEvent(log, indexToken) {
+	//console.log("-- parseEvent --");
+	//console.log("parseEvent[indexToken]: ", indexToken);
 	//console.log("parseEvent[log]:", log);
 
-	//console.log("amount hex:", log.data);
 	const amount = BigInt(log.data);
-	console.log("amount int: ", amount);
-	//ethers.utils.hexStripZeros(metadata); -> ethers.toQuantity
-	// BigInt(log.data).toString();
-	//ethers.zeroPadValue(tokensList[i].listeningAddress,20);
-
-	//console.log("log.topics[1] (from):", log.topics[1]); // 32 !!!!
-	//console.log("log.topics[2] (to):", log.topics[2]); // 32 !!!!
+	//console.log("amount (bigint): ", amount);
+	// TODO save intial amount for cashback
+	// TODO save log.transactionHash for bridge log
 
 	// check data (amount, fees, ...)
 	// calc amount
-	// send transaction to tr.from
 	
-	// convert address length 32 to address length 20
-	let addr = BigInt(log.topics[2]).toString(16);
-	if (addr.length() % 2) addr = ethers.zeroPadValue("0x"+addr,20);
-	else addr = ethers.zeroPadValue("0x0"+addr,20);
+	// get to and from and convert address length 32 to address length 20
+	let _from = BigInt(log.topics[1]).toString(16);
+	if (_from.length % 2 === 0) _from = ethers.zeroPadValue("0x"+_from,20);
+	else _from = ethers.zeroPadValue("0x0"+_from,20);
 
-	sendToken(networkNum, TokenContractAddress, addr, amount);
+	let _to = BigInt(log.topics[2]).toString(16);
+	if (_to.length % 2 === 0) _to = ethers.zeroPadValue("0x"+_to,20);
+	else _to = ethers.zeroPadValue("0x0"+_to,20);
+
+	sendToken(tokensList[indexToken].toNetworkIndex, indexToken, _to, amount, _from);
 }
 
-// Send token to the applicant
-async function sendToken(networkNum, TokenContractAddress, to, amount) {
+
+// Send token
+async function sendToken(networkNum, indexToken, to, amount, from) {
+	//console.log("-- sendToken --");
+	console.log("to: ", to);
+	console.log("from: ", from);
+	console.log("amount: ", amount);
+	console.log("sendToken[toTokenContractAddress]: ", tokensList[indexToken].toTokenContractAddress);
 	try {
 
 		const signer = new ethers.Wallet(process.env.OPSepolia_PRIVATE_KEY, networkProvider[networkNum]);
 
-		//{ "indexed": true, "internalType": "address", "name": "from", "type": "address" },
 		const contractABI = [
 			{
 				"inputs": [
-					{ "indexed": true, "internalType": "address", "name": "to", "type": "address" },
-					{ "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }
+					{ "internalType": "address", "name": "to", "type": "address" },
+					{ "internalType": "uint256", "name": "amount", "type": "uint256" }
 				],
 				"name": "transfer",
+				"outputs": [
+					{ "internalType": "bool", "name": "", "type": "bool" }
+				],
+				"stateMutability": "nonpayable",
 				"type": "function"
 			}
 		];
-		//const contract = new ethers.Contract(networkList[networkId].contractAddress, contractABI, networkProvider);
-		const contract = new ethers.Contract(TokenContractAddress, contractABI, signer);
+		const contract = new ethers.Contract(tokensList[indexToken].toTokenContractAddress, contractABI, signer);
 
-		const tx = await contract.transfer(to, amount); //, { gasPrice: fastGasPrice }
+		const tx = await contract.transfer(from, amount); //, { gasPrice: fastGasPrice }
+		await networkProvider[networkNum].waitForTransaction(tx.hash, 1);
 
-		console.log(tx);
+		console.log("Transfert success tx: ", tx.hash);
 	} catch (error) {
+		//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
+		//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
 		console.error('Error sendToken [' + error.code + ']: ', error);
+		// TODO rembourse on 'to'
 	}
 }
+
+//**** wait transaction ****
+/*
+async function waitTransaction(provider, transaction)  {
+	try {
+		console.log("start waitForTransaction");
+		await provider.waitForTransaction(transaction.hash, 1); //Returns a Promise which will not resolve until transactionHash is mined.
+		console.log("end waitForTransaction");
+		return true;
+	} catch (error) {
+		console.error('Error waitTransaction: ', error);
+		return false;
+	}
+}
+*/
 
 // find Network by name
 // networkName: name of the network to find

@@ -12,6 +12,7 @@
 		"testnet": true,
 		"tokens": [
 			{
+				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"tokenName": "LINK",
 				"contractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
@@ -20,6 +21,7 @@
 				"toToken": "LINK"
 			},
 			{
+				"activated": true,
 				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
 				"tokenName": "LINK",
 				"contractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",

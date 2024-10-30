@@ -42,6 +42,7 @@ async function createServer(req, res) {
 
 		else {
 			if (req.method === 'GET') {
+				// TODO: check for url contain list, listhtml, status, ...
 				res.writeHead(200, { 'Content-Length': Buffer.byteLength('ok'), 'Content-Type': 'text/plain' });
 				res.end('ok');
 			} else {
