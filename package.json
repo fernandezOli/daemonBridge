@@ -1,6 +1,8 @@
 {
-  "name": "deamon-bridge",
+  "name": "daemon-bridge",
   "version": "1.0",
+  "description": "Daemon for bridge.",
+  "author": "Olivier F. and Julien B.",
   "license": "MIT",
   "private": true,
   "dependencies": {

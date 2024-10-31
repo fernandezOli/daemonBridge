@@ -2,21 +2,30 @@ const { ethers, JsonRpcProvider } = require('ethers');
 //const { utils } = require('ethers');
 require("dotenv").config();
 
-const networkList = require('./config/networksList.json');
+const networkList = require('./config/config.json');
 
 let listeningNetworkProvider = null;
 let networkProvider = [];
 let tokensList = null;
+const transferABI = [
+	{
+		"inputs": [
+			{ "internalType": "address", "name": "to", "type": "address" },
+			{ "internalType": "uint256", "name": "amount", "type": "uint256" }
+		],
+		"name": "transfer",
+		"outputs": [
+			{ "internalType": "bool", "name": "", "type": "bool" }
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+];
 
 module.exports = async function () {
 	//console.log("-- loading daemon--");
 	/*
-	let addr = BigInt("0x000000000000000000000000962ac815b1249027cfd80d6b0476c9090b5aef39").toString(16);
 	console.log("address: ", addr);
-	console.log("address BigIntHex: ", ethers.zeroPadValue("0x"+addr,20));
-	let addr2 = BigInt("0x0000000000000000000000000962ac815b1249027cfd80d6b0476c9090b5aef3").toString(16);
-	console.log("address2: ", addr2);
-	console.log("address2 BigIntHex: ", ethers.zeroPadValue("0x0"+addr2,20));
 	*/
 
 	try {
@@ -73,7 +82,7 @@ function startListening() {
 			tokensList[tokenIndex].toNetworkIndex = findNetworkByName(tokensList[tokenIndex].toNetwork);
 
 			const filter = {
-				address: tokensList[tokenIndex].contractAddress,
+				address: tokensList[tokenIndex].tokenContractAddress,
 				topics: [null, null, ethers.zeroPadValue(tokensList[tokenIndex].listeningAddress,32)]
 			};
 
@@ -88,22 +97,21 @@ function startListening() {
 	}
 }
 
+//**********************
+//**** Native Coins ****
+//**********************
+
 // Parse Block for native token payment
 // blockNumber: block number in blockchain
 // networkNum: network index in network list
 async function parseBlock(blockNumber, networkNum) {
 	console.log("parseBlock[networkNum]: ", networkNum);
 	console.log("parseBlock[blockNumber]: ", blockNumber);
-
+/*
 	//const result = await networkProvider[networkNum].getBlockWithTransactions(blockNumber);
 	const block = await listeningNetworkProvider.getBlock(blockNumber);
 	console.log("Transactions:", block.transactions);
-	/*
-	Transactions: [
-  '0x8a64a71ef3f8b91644bfe247be709472acadfffdd25b1be31ba796f1ac838657',
-  '0x6b55ddcae03ecf79ec670efc3e41b10da5cd0fc46f47a2d59fdc190a6cf3a520',
-  '0xe9489b5b9290f684dc05f05a5687fc79f6d8e150bf412384fb3749da52bcd0cc',
-	*/
+
 	for (let i = 0; i < block.transactions.length; i++) {
 		console.log('transaction no: ', i);
 		let result = await listeningNetworkProvider.getTransaction(block.transactions[i]);
@@ -120,7 +128,15 @@ async function parseBlock(blockNumber, networkNum) {
 	// calc amount
 	// send transaction to tr.from
 	//sendNativeToken(networkNum, to, amount)
+*/
 }
+
+/*
+Transactions: [
+'0x8a64a71ef3f8b91644bfe247be709472acadfffdd25b1be31ba796f1ac838657',
+'0x6b55ddcae03ecf79ec670efc3e41b10da5cd0fc46f47a2d59fdc190a6cf3a520',
+'0xe9489b5b9290f684dc05f05a5687fc79f6d8e150bf412384fb3749da52bcd0cc',
+*/
 
 /*
 // Send token to the applicant
@@ -128,7 +144,7 @@ async function sendNativeToken(networkNum, to, amount) {
 	try {
 		//const provider = new ethers.providers.JsonRpcProvider('QUICKNODE_HTTPS_URL');
 		//networkProvider[networkNum]
-		const signer = new ethers.Wallet(process.env.OPSepolia_PRIVATE_KEY, networkProvider[networkNum]);
+		const signer = new ethers.Wallet(process.env["OPSepolia_PRIVATE_KEY"], networkProvider[networkNum]);
 		const tx = await signer.sendTransaction({ to: to, value: amount });
 		console.log(tx);
 	} catch (error) {
@@ -136,6 +152,10 @@ async function sendNativeToken(networkNum, to, amount) {
 	}
 }
 */
+
+//****************
+//**** Tokens ****
+//****************
 
 // Parse log for tokens
 // struct log: transaction log
@@ -145,55 +165,54 @@ async function parseEvent(log, indexToken) {
 	//console.log("parseEvent[indexToken]: ", indexToken);
 	//console.log("parseEvent[log]:", log);
 
-	const amount = BigInt(log.data);
-	//console.log("amount (bigint): ", amount);
-	// TODO save intial amount for cashback
-	// TODO save log.transactionHash for bridge log
+	try {
+		const amount = BigInt(log.data);
+		//console.log("amount (bigint): ", amount);
+		// TODO save intial amount for payback
+		// TODO save log.transactionHash for bridge log
 
-	// check data (amount, fees, ...)
-	// calc amount
-	
-	// get to and from and convert address length 32 to address length 20
-	let _from = BigInt(log.topics[1]).toString(16);
-	if (_from.length % 2 === 0) _from = ethers.zeroPadValue("0x"+_from,20);
-	else _from = ethers.zeroPadValue("0x0"+_from,20);
+		// check data (amount, fees, ...)
 
-	let _to = BigInt(log.topics[2]).toString(16);
-	if (_to.length % 2 === 0) _to = ethers.zeroPadValue("0x"+_to,20);
-	else _to = ethers.zeroPadValue("0x0"+_to,20);
+		// calc amount
 
-	sendToken(tokensList[indexToken].toNetworkIndex, indexToken, _to, amount, _from);
+		// get to and from and convert address length 32 to address length 20
+		let _from = BigInt(log.topics[1]).toString(16);
+		if (_from.length % 2 === 0) _from = ethers.zeroPadValue("0x" + _from, 20);
+		else _from = ethers.zeroPadValue("0x0" + _from, 20);
+
+		/*
+		// Inutile car deja dans le filter
+		let _to = BigInt(log.topics[2]).toString(16);
+		if (_to.length % 2 === 0) _to = ethers.zeroPadValue("0x" + _to, 20);
+		else _to = ethers.zeroPadValue("0x0" + _to, 20);
+		*/
+
+		sendToken(tokensList[indexToken].toNetworkIndex, indexToken, _from, amount);
+	} catch (error) {
+		console.error('Error parseEvent [' + error.code + ']: ', error);
+		// TODO payback on '_from'
+	}
 }
 
-
 // Send token
-async function sendToken(networkNum, indexToken, to, amount, from) {
+// networkNum: network index in network list
+// indexToken: token index
+// from: address sender
+// amount: amount to send
+async function sendToken(networkNum, indexToken, from, amount) {
 	//console.log("-- sendToken --");
-	console.log("to: ", to);
 	console.log("from: ", from);
 	console.log("amount: ", amount);
-	console.log("sendToken[toTokenContractAddress]: ", tokensList[indexToken].toTokenContractAddress);
+	//console.log("sendToken[toTokenContractAddress]: ", tokensList[indexToken].toTokenContractAddress);
+	//networkList.networks[networkNum].networkPrivateKey
+	//networkProvider[i] = new JsonRpcProvider(networkList.networks[i].RPC_URL);
+	console.log("networkPrivateKey: ", networkList.networks[networkNum].networkPrivateKey);
+
 	try {
+		const signer = new ethers.Wallet(process.env["OPSepolia_PRIVATE_KEY"], networkProvider[networkNum]);
+		const contract = new ethers.Contract(tokensList[indexToken].toTokenContractAddress, transferABI, signer);
 
-		const signer = new ethers.Wallet(process.env.OPSepolia_PRIVATE_KEY, networkProvider[networkNum]);
-
-		const contractABI = [
-			{
-				"inputs": [
-					{ "internalType": "address", "name": "to", "type": "address" },
-					{ "internalType": "uint256", "name": "amount", "type": "uint256" }
-				],
-				"name": "transfer",
-				"outputs": [
-					{ "internalType": "bool", "name": "", "type": "bool" }
-				],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			}
-		];
-		const contract = new ethers.Contract(tokensList[indexToken].toTokenContractAddress, contractABI, signer);
-
-		const tx = await contract.transfer(from, amount); //, { gasPrice: fastGasPrice }
+		const tx = await contract.transfer(from, amount);
 		await networkProvider[networkNum].waitForTransaction(tx.hash, 1);
 
 		console.log("Transfert success tx: ", tx.hash);
@@ -201,24 +220,27 @@ async function sendToken(networkNum, indexToken, to, amount, from) {
 		//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 		//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
 		console.error('Error sendToken [' + error.code + ']: ', error);
-		// TODO rembourse on 'to'
+		sendTokenBack(indexToken, from, amount);
 	}
 }
 
-//**** wait transaction ****
-/*
-async function waitTransaction(provider, transaction)  {
-	try {
-		console.log("start waitForTransaction");
-		await provider.waitForTransaction(transaction.hash, 1); //Returns a Promise which will not resolve until transactionHash is mined.
-		console.log("end waitForTransaction");
-		return true;
-	} catch (error) {
-		console.error('Error waitTransaction: ', error);
-		return false;
-	}
+// payback function
+// indexToken: token index
+// from: address sender
+// amount: amount to send
+async function sendTokenBack(indexToken, from, amount) {
+	console.log("-- sendTokenBack --");
+	console.log("indexToken: ", indexToken);
+	console.log("from: ", from);
+	console.log("amount: ", amount);
+	//listeningNetworkProvider
+	//tokensList[indexToken].privateKey4payback
+	//tokensList[indexToken].tokenContractAddress
 }
-*/
+
+//*****************
+//**** Globals ****
+//*****************
 
 // find Network by name
 // networkName: name of the network to find
@@ -232,3 +254,18 @@ function findNetworkByName(networkName) {
 	}
 	return null;
 }
+
+/*
+// wait transaction
+async function waitTransaction(provider, transaction)  {
+	try {
+		console.log("start waitForTransaction");
+		await provider.waitForTransaction(transaction.hash, 1); //Returns a Promise which will not resolve until transactionHash is mined.
+		console.log("end waitForTransaction");
+		return true;
+	} catch (error) {
+		console.error('Error waitTransaction: ', error);
+		return false;
+	}
+}
+*/
