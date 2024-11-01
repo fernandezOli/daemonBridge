@@ -1,6 +1,7 @@
 const { ethers, JsonRpcProvider } = require('ethers');
 //const { utils } = require('ethers');
 require("dotenv").config();
+const nodemailer = require('nodemailer');
 
 const networkList = require('./config/config.json');
 
@@ -21,18 +22,34 @@ const transferABI = [
 		"type": "function"
 	}
 ];
+let mailTransporter = null;
 
-module.exports = async function () {
+module.exports = function daemon() {
 	//console.log("-- loading daemon--");
 	/*
 	console.log("address: ", addr);
 	*/
 
 	try {
+		initMailer();
 		initProviders();
 		startListening();
+		return makeJson();
 	} catch (error) {
 		throw error;
+	}
+}
+
+function initMailer() {
+	//console.log("-- Init Mail --");
+	try {
+		mailTransporter = nodemailer.createTransport({
+			host: process.env.SMTP_ADDRESS,
+			port: process.env.SMTP_PORT,
+			secure: process.env.SECURE
+		});
+	} catch (error) {
+		console.error('ERROR initMailer [' + error.code + ']: ', error);
 	}
 }
 
@@ -194,7 +211,7 @@ async function parseEvent(log, indexToken) {
 	}
 }
 
-// Send token
+// Send token in BC2 to the sender
 // networkNum: network index in network list
 // indexToken: token index
 // from: address sender
@@ -204,9 +221,7 @@ async function sendToken(networkNum, indexToken, from, amount) {
 	console.log("from: ", from);
 	console.log("amount: ", amount);
 	//console.log("sendToken[toTokenContractAddress]: ", tokensList[indexToken].toTokenContractAddress);
-	//networkList.networks[networkNum].networkPrivateKey
-	//networkProvider[i] = new JsonRpcProvider(networkList.networks[i].RPC_URL);
-	console.log("networkPrivateKey: ", networkList.networks[networkNum].networkPrivateKey);
+	console.log("signerPrivateKey: ", tokensList[indexToken].toPrivateKey);
 
 	try {
 		const signer = new ethers.Wallet(process.env["OPSepolia_PRIVATE_KEY"], networkProvider[networkNum]);
@@ -219,8 +234,9 @@ async function sendToken(networkNum, indexToken, from, amount) {
 	} catch (error) {
 		//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 		//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
-		console.error('Error sendToken [' + error.code + ']: ', error);
 		sendTokenBack(indexToken, from, amount);
+		sendMessageToAdmin('sendToken', error, networkNum, indexToken, from, amount);
+		console.error('Error (function) sendToken [' + error.code + ']: ', error);
 	}
 }
 
@@ -238,9 +254,9 @@ async function sendTokenBack(indexToken, from, amount) {
 	//tokensList[indexToken].tokenContractAddress
 }
 
-//*****************
-//**** Globals ****
-//*****************
+//****************
+//**** Divers ****
+//****************
 
 // find Network by name
 // networkName: name of the network to find
@@ -255,17 +271,64 @@ function findNetworkByName(networkName) {
 	return null;
 }
 
-/*
-// wait transaction
-async function waitTransaction(provider, transaction)  {
+// send mail to admin
+// networkName: name of the network to find
+// return: network index in network list or null on error
+async function sendMessageToAdmin(functionName, error, networkNum, indexToken, from, amount) {
+	//console.log("-- sendMessageToAdmin --");
+	console.error('Error in ' + functionName + ' [' + error.code + ']: ', error);
+	if (process.env.SEND_MAIL_TO_ADMIN !== true) return;
+	if (mailTransporter === undefined || mailTransporter === null) return;
+	if (process.env.ADMIN_ADDRESS === undefined || process.env.ADMIN_ADDRESS === null || process.env.ADMIN_ADDRESS === "") return;
+	if (process.env.FROM_ADDRESS === undefined || process.env.FROM_ADDRESS === null || process.env.FROM_ADDRESS === "") return;
+
 	try {
-		console.log("start waitForTransaction");
-		await provider.waitForTransaction(transaction.hash, 1); //Returns a Promise which will not resolve until transactionHash is mined.
-		console.log("end waitForTransaction");
-		return true;
+		let message = 'Error in ' + functionName + ' [' + error.code +
+			'], network: [' + networkNum + ']' + tokensList[indexToken].toNetwork +
+			', tokenIndex: ' + indexToken +
+			', token: ' + tokensList[indexToken].toToken +
+			', user: ' + tokensList[indexToken].toPrivateKey +
+			', from: ' + from +
+			', amount: ' + amount;
+
+		console.log("Message: " + message);
+
+		// send mail
+		const mailOptions = {
+			from: process.env.FROM_ADDRESS,
+			to: process.env.ADMIN_ADDRESS,
+			subject: "Error on daemon bridge",
+			html: message
+		};
+		mailTransporter.sendMail(mailOptions, function (error, info) {
+			if (error) {
+				console.error('Error Email sent: ', error);
+			} else {
+				console.log('Email sent: ' + info.response);
+			}
+		});
 	} catch (error) {
-		console.error('Error waitTransaction: ', error);
-		return false;
+		console.error('Error Email sent: ', error);
 	}
 }
-*/
+
+// make json for html request
+function makeJson() {
+	//console.log("--- makeJson ---");
+	let _daemonObject = {};
+	let _tokensList = [];
+
+	if (tokensList === undefined || tokensList === null) return "tokensList error";
+
+	try {
+		_daemonObject.networks = networkList.networks;
+		for (let i = 0; i < tokensList.length; i++) {
+			_tokensList.push(tokensList[i]);
+		}
+		_daemonObject.tokensList = _tokensList;
+		return JSON.stringify(_daemonObject);
+	} catch (error) {
+		console.error('Error htmlJson: ', error);
+		return "Error create tokens list";
+	}
+}

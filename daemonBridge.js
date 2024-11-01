@@ -2,12 +2,13 @@ var http = require('http');
 const { exit } = require('process');
 
 const daemon = require('./daemon.js');
+let bodyJson = "";
 
 // **** main ****
 
 // launch the daemon
 try {
-	daemon();
+	bodyJson = daemon();
 } catch(error) {
 	console.error('ERROR lauching daemon [' + error.code + ']: ', error);
 	exit();
@@ -39,12 +40,12 @@ async function createServer(req, res) {
 			res.writeHead(200, { 'Content-Type': 'text/plain' });
 			res.end('');
 		}
-
 		else {
 			if (req.method === 'GET') {
-				// TODO: check for url contain list, listhtml, status, ...
-				res.writeHead(200, { 'Content-Length': Buffer.byteLength('ok'), 'Content-Type': 'text/plain' });
-				res.end('ok');
+				let _body = "ok";
+				if(req.url.match("/json")) _body = bodyJson;
+				res.writeHead(200, { 'Content-Length': Buffer.byteLength(_body), 'Content-Type': 'text/plain' });
+				res.end(_body);
 			} else {
 				res.writeHead(405, { 'Content-Length': Buffer.byteLength('Method Not Allowed'), 'Content-Type': 'text/plain' });
 				res.end('Method Not Allowed');

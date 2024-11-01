@@ -11,7 +11,6 @@ For adding a network, you need to define a new entry in "networks" entry in conf
 {
 	"networkName": "<name_of_network>", 
 	"networkLongName": "<long_name_of_network>",
-	"networkPrivateKey": "<private_key_name_of_account_for_sending_fund>",
 	"symbol": "<token_or_coin_symbol>",
 	"RPC_URL": "<RPC_URL_for_this_network>",
 	"testnet": <true_or_false>
@@ -60,17 +59,17 @@ The creation of a new user is only necessary when adding a new token.
 ## Pay
 Pay with private key define in config file:
 ```json
-"networkPrivateKey": "<private_key_name_of_account_for_sending_fund>"
+"toPrivateKey": "<private_key_name_of_account_for_sending_fund>"
 ```
 This private key MUST BE define in .env file:
 ```
-<private_key_name>="<private_key>"
+<private_key_name_of_account_for_sending_fund>="<private_key>"
 ```
 
 example:
 ```
 [in config file]
-"networkPrivateKey": "MyAccount"
+"toPrivateKey": "MyAccount"
 
 [in .env file]
 MyAccount="123456789....123456789"
@@ -84,9 +83,10 @@ Pay with private key of listeningAddress define in config file:
 "listeningNetwork": {
     "tokens": [
         "listeningAddress": "0x962aC815B...B5aeF39",
+		"privateKey4payback": "MyAccount_LINK_PAYBACK",
 ```
 This account MUST have native coin of listening network for fees.
-
+The 'privateKey4payback' is the private key of the listening address.
 
 ## License
 
