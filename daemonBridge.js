@@ -1,19 +1,18 @@
 var http = require('http');
 const { exit } = require('process');
 
-const daemon = require('./daemon.js');
-let bodyJson = "";
-
-// **** main ****
+const daemonBridge = require('./daemon.js');
+let daemon = null;
 
 // launch the daemon
 try {
-	bodyJson = daemon();
+	daemon = new daemonBridge();
 } catch(error) {
 	console.error('ERROR lauching daemon [' + error.code + ']: ', error);
 	exit();
 }
-console.log("");
+
+if(daemon === null) console.error("ERROR lauching daemon (unknown error)");
 
 const serverPort = 3000;
 
@@ -43,7 +42,7 @@ async function createServer(req, res) {
 		else {
 			if (req.method === 'GET') {
 				let _body = "ok";
-				if(req.url.match("/json")) _body = bodyJson;
+				if(req.url.match("/json")) _body = daemon.makeJson();
 				res.writeHead(200, { 'Content-Length': Buffer.byteLength(_body), 'Content-Type': 'text/plain' });
 				res.end(_body);
 			} else {
@@ -54,4 +53,4 @@ async function createServer(req, res) {
 	} catch (error) {
 		console.error('ERROR (GET) [' + error.code + ']: ', error);
 	}
-};
+}

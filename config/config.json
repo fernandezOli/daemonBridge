@@ -8,7 +8,7 @@
 		"networkName": "Sepolia",
 		"networkLongName": "Sepolia (testnet)",
 		"symbol": "SETH",
-		"RPC_URL": "https://rpc2.sepolia.org",
+		"RPC_URL": "https://endpoints.omniatech.io/v1/eth/sepolia/public",
 		"testnet": true,
 		"tokens": [
 			{
