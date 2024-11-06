@@ -1,5 +1,5 @@
-const { ethers, JsonRpcProvider } = require('ethers');
-//const { utils } = require('ethers');
+// Daemon.js
+const { ethers } = require('ethers');
 require("dotenv").config();
 const nodemailer = require('nodemailer');
 
@@ -28,14 +28,14 @@ module.exports = class daemon {
 
 	constructor() {
 		//console.log("-- loading daemon--");
-		/*
-		console.log("address: ", addr);
-		*/
+		//const providerTest = ethers.providers.getDefaultProvider('sepolia');
+		//console.log("providerTest: ", providerTest);
 
 		try {
 			this.initMailer();
 			this.initProviders();
 			this.startListening();
+			//sendMessageToAdmin(null, null, 0, 0, "0xE4aB69C077896252FAFBD49EFD26B5D171A32410", 10000000);
 		} catch (error) {
 			throw error;
 		}
@@ -58,14 +58,14 @@ module.exports = class daemon {
 	initProviders() {
 		//console.log("-- init Providers --");
 		try {
-			this._listeningNetworkProvider = new JsonRpcProvider(networkList.listeningNetwork.RPC_URL);
+			this._listeningNetworkProvider = new ethers.providers.JsonRpcProvider(networkList.listeningNetwork.RPC_URL);
 			if (this._listeningNetworkProvider === undefined || this._listeningNetworkProvider === null) {
 				throw new Error('Invalid RPC_URL for listening network');
 			}
 
 			this._networkProvider = [];
 			for (let i = 0; i < networkList.networks.length; i++) {
-				this._networkProvider[i] = new JsonRpcProvider(networkList.networks[i].RPC_URL);
+				this._networkProvider[i] = new ethers.providers.JsonRpcProvider(networkList.networks[i].RPC_URL);
 				if (this._networkProvider[i] === undefined || this._networkProvider[i] === null) {
 					throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
 				}
@@ -83,17 +83,24 @@ module.exports = class daemon {
 		if (this._listeningNetworkProvider === null) {
 			throw new Error('ERROR start listening, no provider');
 		}
-		try {
-			//this._listeningNetworkProvider.removeAllListeners();
 
-			// Native token
-			if (networkList.listeningNetwork.nativeToken) {
+		//this._listeningNetworkProvider.removeAllListeners();
+		// Native coin
+		try {
+			if (networkList.listeningNetwork.activeNativeCoin) {
+				// Scan all blocks
 				this._listeningNetworkProvider.on("block", (blockNumber) => { parseBlock(blockNumber, 0) });
 				console.log("Start listening for native token");
 			}
-			//this._listeningNetworkProvider.on("error", (tx) => { console.error('Error .on: ', tx)} );
+			//this._listeningNetworkProvider.on("error", (error) => { console.error('Error .on: ', error)} );
+			// TODO: address list of listeners
+		} catch (error) {
+			console.error('ERROR start listening for native token');
+			throw error;
+		}
 
-			// tokens
+		// tokens
+		try {
 			this._tokensList = networkList.listeningNetwork.tokens;
 			for (tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
 				if (this._tokensList[tokenIndex].listeningAddress === undefined ||
@@ -107,7 +114,7 @@ module.exports = class daemon {
 
 				const filter = {
 					address: this._tokensList[tokenIndex].tokenContractAddress,
-					topics: [null, null, ethers.zeroPadValue(this._tokensList[tokenIndex].listeningAddress, 32)]
+					topics: [null, null, ethers.utils.hexZeroPad(this._tokensList[tokenIndex].listeningAddress, 32)]
 				};
 
 				const _index = tokenIndex;
@@ -201,20 +208,13 @@ module.exports = class daemon {
 
 			// get to and from and convert address length 32 to address length 20
 			let _from = BigInt(log.topics[1]).toString(16);
-			if (_from.length % 2 === 0) _from = ethers.zeroPadValue("0x" + _from, 20);
-			else _from = ethers.zeroPadValue("0x0" + _from, 20);
-
-			/*
-			// Inutile car deja dans le filter
-			let _to = BigInt(log.topics[2]).toString(16);
-			if (_to.length % 2 === 0) _to = ethers.zeroPadValue("0x" + _to, 20);
-			else _to = ethers.zeroPadValue("0x0" + _to, 20);
-			*/
+			if (_from.length % 2 === 0) _from = ethers.utils.hexZeroPad("0x" + _from, 20);
+			else _from = ethers.utils.hexZeroPad("0x0" + _from, 20);
 
 			this.sendToken(this._tokensList[indexToken].toNetworkIndex, indexToken, _from, amount);
 		} catch (error) {
+			this.sendTokenBack(indexToken, from, amount);
 			console.error('Error parseEvent [' + error.code + ']: ', error);
-			// TODO payback on '_from'
 		}
 	}
 
@@ -227,11 +227,10 @@ module.exports = class daemon {
 		//console.log("-- sendToken --");
 		console.log("from: ", from);
 		console.log("amount: ", amount);
-		//console.log("sendToken[toTokenContractAddress]: ", this._tokensList[indexToken].toTokenContractAddress);
-		console.log("signerPrivateKey: ", this._tokensList[indexToken].toPrivateKey);
+		//console.log("signerPrivateKey: ", this._tokensList[indexToken].toPrivateKey);
 
 		try {
-			const signer = new ethers.Wallet(process.env["OPSepolia_PRIVATE_KEY"], this._networkProvider[networkNum]);
+			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].toPrivateKey], this._networkProvider[networkNum]);
 			const contract = new ethers.Contract(this._tokensList[indexToken].toTokenContractAddress, transferABI, signer);
 
 			const tx = await contract.transfer(from, amount);
@@ -256,9 +255,21 @@ module.exports = class daemon {
 		console.log("indexToken: ", indexToken);
 		console.log("from: ", from);
 		console.log("amount: ", amount);
-		//this._listeningNetworkProvider
-		//this._tokensList[indexToken].privateKey4payback
-		//this._tokensList[indexToken].tokenContractAddress
+
+		try {
+			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].privateKey4payback], this._listeningNetworkProvider);
+			const contract = new ethers.Contract(this._tokensList[indexToken].tokenContractAddress, transferABI, signer);
+
+			const tx = await contract.transfer(from, amount);
+			await this._listeningNetworkProvider.waitForTransaction(tx.hash, 1);
+
+			console.log("Transfert success tx: ", tx.hash);
+		} catch (error) {
+			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
+			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
+			this.sendMessageToAdmin('sendTokenBack', error, networkNum, indexToken, from, amount);
+			console.error('Error (function) sendTokenBack [' + error.code + ']: ', error);
+		}
 	}
 
 	//***********************
@@ -316,8 +327,19 @@ module.exports = class daemon {
 		if (process.env.FROM_ADDRESS === undefined || process.env.FROM_ADDRESS === null || process.env.FROM_ADDRESS === "") return;
 
 		try {
-			let message = 'Error in ' + functionName + ' [' + error.code +
-				'], network: [' + networkNum + ']' + this._tokensList[indexToken].toNetwork +
+			let message = '';
+			if(error !== null) {
+				if (functionName !== null && functionName !== "") {
+					message += 'Error in ' + functionName;
+				}
+				message += ' [' + error.code + ']';
+				if(error.message !== undefined && error.message !== null && error.message !== "") {
+					message += ", " + error.message;
+				}
+				message += ', ';
+			}
+
+			message += 'network: [' + networkNum + ']' + this._tokensList[indexToken].toNetwork +
 				', tokenIndex: ' + indexToken +
 				', token: ' + this._tokensList[indexToken].toToken +
 				', user: ' + this._tokensList[indexToken].toPrivateKey +

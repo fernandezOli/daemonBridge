@@ -8,7 +8,7 @@ let daemon = null;
 try {
 	daemon = new daemonBridge();
 } catch(error) {
-	console.error('ERROR lauching daemon [' + error.code + ']: ', error);
+	console.error('ERROR lauching daemon'); // [' + error.code + ']: ', error);
 	exit();
 }
 

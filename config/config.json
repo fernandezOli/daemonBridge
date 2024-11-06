@@ -4,12 +4,21 @@
 		"version": "1.0"
 	},
 	"listeningNetwork": {
-		"nativeToken": false,
+		"activeNativeCoin": false,
 		"networkName": "Sepolia",
 		"networkLongName": "Sepolia (testnet)",
 		"symbol": "SETH",
 		"RPC_URL": "https://endpoints.omniatech.io/v1/eth/sepolia/public",
 		"testnet": true,
+		"nativeCoin": [
+			{
+				"activated": false,
+				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
+				"privateKey4payback": "OPSepolia_LINK_PAYBACK",
+				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
+				"toNetwork": "Optimism Sepolia"
+			}
+		],
 		"tokens": [
 			{
 				"activated": true,
