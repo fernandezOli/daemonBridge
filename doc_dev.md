@@ -1,4 +1,4 @@
-# daemon Bridge developper documentation
+# Daemon Bridge developper documentation
 Daemon for bridge developper documentation
 
 ## Config file

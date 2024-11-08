@@ -4,13 +4,39 @@
 		"version": "1.0"
 	},
 	"listeningNetwork": {
-		"activeNativeCoin": false,
-		"networkName": "Sepolia",
+		"activeNativeToken": false,
+		"networkName": "sepolia",
 		"networkLongName": "Sepolia (testnet)",
 		"symbol": "SETH",
-		"RPC_URL": "https://endpoints.omniatech.io/v1/eth/sepolia/public",
 		"testnet": true,
-		"nativeCoin": [
+		"RPC_URLs": [
+			{
+				"rpcurl": "https://rpc2.sepolia.org",
+				"type": "",
+				"apikey": ""
+			},
+			{
+				"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
+				"type": "",
+				"apikey": ""
+			},
+			{
+				"rpcurl": "https://1rpc.io/sepolia",
+				"type": "",
+				"apikey": ""
+			},
+			{
+				"rpcurl": "https://api-sepolia.etherscan.io/api/",
+				"type": "ETHERSCAN",
+				"apikey": "ETHERSCAN_API_KEY"
+			},
+			{
+				"rpcurl": "https://sepolia.infura.io/v3/",
+				"type": "INFURA",
+				"apikey": "INFURA_API_KEY"
+			}
+		],
+		"nativeToken": [
 			{
 				"activated": false,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",

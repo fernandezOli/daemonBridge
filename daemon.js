@@ -1,6 +1,7 @@
 // Daemon.js
 const { ethers } = require('ethers');
 require("dotenv").config();
+const deasync = require('deasync');
 const nodemailer = require('nodemailer');
 
 const networkList = require('./config/config.json');
@@ -20,6 +21,8 @@ const transferABI = [
 	}
 ];
 
+let validProviderIndex = []; // valid Provider Index by network, listening = 0, destination = network index + 1
+
 module.exports = class daemon {
 	_listeningNetworkProvider = null;
 	_networkProvider = [];
@@ -32,39 +35,37 @@ module.exports = class daemon {
 		//console.log("providerTest: ", providerTest);
 
 		try {
-			this.initMailer();
 			this.initProviders();
 			this.startListening();
+			this.initMailer();
 			//sendMessageToAdmin(null, null, 0, 0, "0xE4aB69C077896252FAFBD49EFD26B5D171A32410", 10000000);
 		} catch (error) {
 			throw error;
 		}
 	}
 
-	initMailer() {
-		//console.log("-- Init Mail --");
-		try {
-			this._mailTransporter = nodemailer.createTransport({
-				host: process.env.SMTP_ADDRESS,
-				port: process.env.SMTP_PORT,
-				secure: process.env.SECURE
-			});
-		} catch (error) {
-			console.error('ERROR initMailer [' + error.code + ']: ', error);
-		}
-	}
-
-	// init providers for all destination networks
+	// init providers for all networks
 	initProviders() {
 		//console.log("-- init Providers --");
-		try {
-			this._listeningNetworkProvider = new ethers.providers.JsonRpcProvider(networkList.listeningNetwork.RPC_URL);
-			if (this._listeningNetworkProvider === undefined || this._listeningNetworkProvider === null) {
-				throw new Error('Invalid RPC_URL for listening network');
-			}
 
+		// Init listening Network
+		try {
+			let validProvider;
+			(async () => validProvider = await this.getFirstValidProvider(networkList.listeningNetwork.RPC_URLs, 0).then().catch())();
+			while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
+			//console.log("validProvider [initProviders]: ", validProvider);
+			if (validProvider === null) throw new Error('Invalid RPC_URL for listening network');
+			this._listeningNetworkProvider = validProvider;
+		} catch (error) {
+			console.error('ERROR initProviders for listening Network [' + error.code + ']: ', error);
+			throw error;
+		}
+
+		// Init destination Networks
+		try {
 			this._networkProvider = [];
 			for (let i = 0; i < networkList.networks.length; i++) {
+				// TODO infura, etherscan like listening
 				this._networkProvider[i] = new ethers.providers.JsonRpcProvider(networkList.networks[i].RPC_URL);
 				if (this._networkProvider[i] === undefined || this._networkProvider[i] === null) {
 					throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
@@ -76,7 +77,45 @@ module.exports = class daemon {
 		}
 	}
 
-	// Start listening on network for native coin or tokens
+	// get the first valid provider for a network
+	// return: valid provider or null on error
+	async getFirstValidProvider(networkUrlList, networkIndex) {
+		//console.log("-- getFirstValidProvider --");
+
+		for (let i = 0; i < networkUrlList.length; i++) {
+			try {
+				let url = networkUrlList[i].rpcurl;
+				let providerUrl = null;
+				//console.log("Check provider: ", url);
+
+				//InfuraProvider ethers.providers.JsonRpcProvider(url + process.env[networkUrlList[i].apikey], networkList.listeningNetwork.networkName)
+				if(networkUrlList[i].type !== "") {
+					if(networkUrlList[i].type === "ETHERSCAN")
+						providerUrl = new ethers.providers.EtherscanProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
+					else
+						providerUrl = new ethers.providers.InfuraProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
+				}
+				else providerUrl = new ethers.providers.JsonRpcProvider(url);
+
+				if (providerUrl === null) continue;
+
+				//let providerError = await providerUrl.send("eth_chainId", []);
+				//console.log("eth_chainId [getFirstValidProvider]: ", providerError);
+				// TODO: check filter ?
+
+				//console.log("Valid provider found: ", url);
+				validProviderIndex[networkIndex] = i;
+				return providerUrl;
+			} catch (error) {
+				console.error("Error provider: ", error);
+				continue;
+			}
+		}
+		console.error("Error, no valid provider found !");
+		return null;
+	}
+
+	// Start listening on network for native token and tokens
 	startListening() {
 		//console.log("-- start Listening --");
 		let tokenIndex = null;
@@ -85,15 +124,15 @@ module.exports = class daemon {
 		}
 
 		//this._listeningNetworkProvider.removeAllListeners();
-		// Native coin
+		// Native token
 		try {
-			if (networkList.listeningNetwork.activeNativeCoin) {
+			if (networkList.listeningNetwork.activeNativeToken) {
 				// Scan all blocks
-				this._listeningNetworkProvider.on("block", (blockNumber) => { parseBlock(blockNumber, 0) });
+				this._listeningNetworkProvider.on("block", (blockNumber) => { this.parseBlock(blockNumber, 0) });
 				console.log("Start listening for native token");
 			}
-			//this._listeningNetworkProvider.on("error", (error) => { console.error('Error .on: ', error)} );
-			// TODO: address list of listeners
+			this._listeningNetworkProvider.on("error", (error) => { console.error('Error _listeningNetworkProvider.on: ', error)} );
+			// TODO: make address list of listeners
 		} catch (error) {
 			console.error('ERROR start listening for native token');
 			throw error;
@@ -102,7 +141,7 @@ module.exports = class daemon {
 		// tokens
 		try {
 			this._tokensList = networkList.listeningNetwork.tokens;
-			for (tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
+			for (let tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
 				if (this._tokensList[tokenIndex].listeningAddress === undefined ||
 					this._tokensList[tokenIndex].listeningAddress === null ||
 					this._tokensList[tokenIndex].listeningAddress === "0x") {
@@ -118,7 +157,7 @@ module.exports = class daemon {
 				};
 
 				const _index = tokenIndex;
-				this._listeningNetworkProvider.on(filter, (log) => { parseEvent(log, _index); });
+				this._listeningNetworkProvider.on(filter, (log) => { this.parseEvent(log, _index); });
 				console.log("Start listening for token " + this._tokensList[tokenIndex].tokenName + " on " + this._tokensList[tokenIndex].listeningAddress + " to " + this._tokensList[tokenIndex].toNetwork + "/" + this._tokensList[tokenIndex].toToken);
 			}
 		} catch (error) {
@@ -126,10 +165,11 @@ module.exports = class daemon {
 			console.error('ERROR start listening [' + error.code + ']: ', error);
 			throw error;
 		}
+		// TODO add timeout to reload the filters
 	}
 
 	//**********************
-	//**** Native Coins ****
+	//**** Native Token ****
 	//**********************
 
 	// Parse Block for native token payment
@@ -225,8 +265,8 @@ module.exports = class daemon {
 	// amount: amount to send
 	async sendToken(networkNum, indexToken, from, amount) {
 		//console.log("-- sendToken --");
-		console.log("from: ", from);
-		console.log("amount: ", amount);
+		//console.log("from: ", from);
+		//console.log("amount: ", amount);
 		//console.log("signerPrivateKey: ", this._tokensList[indexToken].toPrivateKey);
 
 		try {
@@ -315,6 +355,22 @@ module.exports = class daemon {
 			}
 		}
 		return null;
+	}
+
+	//TODO async
+	initMailer() {
+		//console.log("-- Init Mail --");
+		if (process.env.SEND_MAIL_TO_ADMIN !== true) return;
+
+		try {
+			this._mailTransporter = nodemailer.createTransport({
+				host: process.env.SMTP_ADDRESS,
+				port: process.env.SMTP_PORT,
+				secure: process.env.SECURE
+			});
+		} catch (error) {
+			console.error('ERROR initMailer [' + error.code + ']: ', error);
+		}
 	}
 
 	// send mail to admin

@@ -6,6 +6,7 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
+    "deasync": "^0.1.30",
     "dotenv": "^16.4.5",
     "ethers": "^5.7.2",
     "http": "^0.0.1-security",
