@@ -1,14 +1,27 @@
 const ethers = require('ethers');
-//const { time, loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
-const { expect } = require("chai");
 require('dotenv').config()
+const { expect } = require("chai");
+//const { time, loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
-// import ../config/config.json
+const config = require('../../config/config.json');
 
-const providerSend = new ethers.providers.JsonRpcProvider("https://rpc2.sepolia.org");
-const providerReceive = new ethers.providers.JsonRpcProvider("https://sepolia.optimism.io");
+const testToken = config.listeningNetwork.tokens[0];
+console.log("");
+console.log("From network/token: ", config.listeningNetwork.networkName + "/" + testToken.tokenName);
+console.log("To network/token: ", testToken.toNetwork + "/" + testToken.toToken);
+console.log("listening Address: ", testToken.listeningAddress);
+console.log("Send Token Address: ", testToken.tokenContractAddress);
+console.log("Receive Token Address: ", testToken.toTokenContractAddress);
 
-const signer = new ethers.Wallet(process.env.Sepolia_PRIVATE_KEY, providerSend);
+// use the fisrt entry of RPC_URL
+const providerSend = new ethers.providers.JsonRpcProvider(config.listeningNetwork.RPC_URLs[0].rpcurl); // sepolia
+const providerReceive = new ethers.providers.JsonRpcProvider(config.networks[0].RPC_URL); // optimism sepolia
+const contractSendTokenAddress = testToken.tokenContractAddress; // sepolia link 0x779877A7B0D9E8603169DdbD7836e478b4624789
+const contractReceiveTokenAddress = testToken.toTokenContractAddress; // optimism sepolia link 0xE4aB69C077896252FAFBD49EFD26B5D171A32410
+
+const signerReceive = testToken.listeningAddress; // 0x962aC815B1249027Cfd80D6b0476C9090B5aeF39
+
+const serverAddress = "http://localhost:3000/";
 
 const abi = [
 	"function balanceOf(address) view returns(uint)",
@@ -18,33 +31,46 @@ const abi = [
 const waitingTime = 1000;
 const maxTime = 20;
 
+expect(process.env.Sepolia_PRIVATE_KEY, "Invalid private key !").to.be.a.properPrivateKey;
+const signer = new ethers.Wallet(process.env.Sepolia_PRIVATE_KEY, providerSend);
+
 describe("test Sepolia optimism", function () {
     it("send token", async function () {
 		// check if daemon is running
 		try {
-			await fetch(`http://localhost:3000/`);
+			await fetch(serverAddress);
 		} catch(error) {
 			expect(true, "localhost Error, daemon not started !").to.be.false;
 		}
 
-		// get initial balance of receive token
-		const contractSend = new ethers.Contract("0x779877A7B0D9E8603169DdbD7836e478b4624789", abi, providerSend); // sepolia link
+		// get and check initial network balance
+		signer_balance = await providerSend.getBalance(signer.address);
+		signer_receive_balance = await providerReceive.getBalance(signerReceive);
+
+		expect(signer_balance, "Sender Not enough network coins for fees !").to.gt(1);
+		expect(signer_receive_balance, "Receiver Not enough network coins for fees !").to.gt(1);
+
+		// get initial token balance
+		const contractSend = new ethers.Contract(contractSendTokenAddress, abi, providerSend);
 		const initial_balance_of_emit_token = await contractSend.balanceOf(signer.address);
 
-		const contractReceive = new ethers.Contract("0xE4aB69C077896252FAFBD49EFD26B5D171A32410", abi, providerReceive); // optimism sepolia
-		const initial_balance_of_receive_token = await contractReceive.balanceOf(signer.address);
+		const contractReceive = new ethers.Contract(contractReceiveTokenAddress, abi, providerReceive);
+		const initial_balance_of_receiver = await contractReceive.balanceOf(signerReceive);
 
-		// check balances
-		expect(initial_balance_of_emit_token).to.gt(10);
-		const initial_balance_of_receiver = await contractReceive.balanceOf("0x962aC815B1249027Cfd80D6b0476C9090B5aeF39");
-		expect(initial_balance_of_receiver).to.gt(10);
+		// check token balances
+		expect(initial_balance_of_emit_token, "Sender not enough tokens !").to.gt(10);
+		expect(initial_balance_of_receiver, "Receiver not enough tokens !").to.gt(10);
 
-		//return;
+		return;
 
 		// send tokens
+		const initial_balance_of_receive_token = await contractReceive.balanceOf(signer.address);
+
 		//await signer.sendTransaction({ to: "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", value: ethers.utils.parseEther("1.0") }); // Sends exactly 1.0 ether
-		//await signer.sendTransaction({ to: "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", value: ethers.utils.parseEther("10.0") });
-		await contractSend.connect(signer).transfer("0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", "1000000000000000000", {gasPrice: 200000000000, gasLimit: 177302});
+		const transactionTx = await contractSend.connect(signer).transfer(signerReceive, "1000000000000000000", {gasPrice: 200000000000, gasLimit: 177302});
+		await transactionTx.wait(1);
+		const new_balance_of_emit_token = await contractSend.balanceOf(signer.address);
+		expect(new_balance_of_emit_token).to.lt(initial_balance_of_emit_token);
     
 		// wait for exchange or refund
 		let new_balance_of_receive_token = 0;
@@ -53,6 +79,7 @@ describe("test Sepolia optimism", function () {
 			await sleep(waitingTime);
 			new_balance_of_receive_token = await contractReceive.balanceOf(signer.address);
 			if (new_balance_of_receive_token !== initial_balance_of_receive_token) break;
+			// TODO check refund
 			i++;
 			if (i > maxTime) break;
 		}
@@ -62,8 +89,6 @@ describe("test Sepolia optimism", function () {
 			expect(true, "Error max waiting time !").to.be.false;
 		}
 		else {
-			//new_balance_of_receive_token = await contractReceive.balanceOf(signer.address);
-			//expect(initial_balance_of_emit_token).to.gt(new_balance_of_emit_token);
 			expect(new_balance_of_receive_token).to.gt(initial_balance_of_receive_token);
 		}
 	});

@@ -59,6 +59,6 @@ async function createServer(req, res) {
 			}
 		}
 	} catch (error) {
-		console.error('ERROR (GET) [' + error.code + ']: ', error);
+		console.error('ERROR server [' + error.code + ']: ', error);
 	}
 }

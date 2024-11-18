@@ -1,26 +1,26 @@
 # Daemon Bridge
 Daemon for bridge
 
-Convert any coins or tokens to any coins or tokens in another blockchain without any interface or smart-contract.
+Convert coins or tokens from one EVM blockchain to coins or tokens from another EVM blockchain without any interface or smart-contract.
 
 ## Why
 
 Usable directly from a wallet.
 Can be use by UI and smart-contract.
 
-
 ## Security
 
 - **No** interface.
 - **No** smart-contract.
+- **No** oracle.
 - **No** request on the daemon.
-- **No** direct access to the daemon (except for the admin and proxy).
+- **No** direct access to the daemon (except for admin and proxy).
 
 **Everything goes through the blockchain.**
 
 high security with proxy.
 
-little code (less than 1000 lines)
+low code (less than 1000 lines)
 
 ## Dev
 
@@ -62,18 +62,15 @@ Listening on **sepolia**
 	- etherjs (5.7.2)
     - http (0.0.1-security)
 
-
 ## Changelog
 
 ### v1.0
 
     Initial version
 
-
 ## License
 
 MIT license
-
 
 ## Support
 
