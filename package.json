@@ -17,7 +17,11 @@
     "start": "node daemonBridge.js",
     "build": "react-scripts build",
     "test": "node daemonBridge.js",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "daemon1": "node daemonBridge.js 3000",
+    "daemon2": "node daemonBridge.js 3001",
+    "daemon3": "node daemonBridge.js 3002",
+    "daemon4": "node daemonBridge.js 3003"
   },
   "browserslist": {
     "production": [

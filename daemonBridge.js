@@ -1,4 +1,4 @@
-var http = require('http');
+const http = require('http');
 const { exit } = require('process');
 
 const daemonBridge = require('./daemon.js');
@@ -22,7 +22,12 @@ console.log('');
 console.log("Launching daemon at:", new Date().toString());
 console.log('');
 
-const serverPort = 3000;
+let serverPort = 3000; // default port for npm start
+const params = process.argv.slice(2);
+if(params[0] !== undefined) {
+	const paramPort = params[0].trim();
+	if(paramPort !== undefined && paramPort !== null && paramPort !== "") serverPort = paramPort;
+}
 
 http.createServer(async function (req, res) {
 	createServer(req, res);

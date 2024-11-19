@@ -53,8 +53,8 @@ module.exports = class daemon {
 			let validProvider;
 			(async () => validProvider = await this.getFirstValidProvider(networkList.listeningNetwork.RPC_URLs, 0).then().catch())();
 			while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-			//console.log("validProvider [initProviders]: ", validProvider);
 			if (validProvider === null) throw new Error('Invalid RPC_URL for listening network');
+			//console.log("validProvider [initProviders]: ", validProvider);
 			this._listeningNetworkProvider = validProvider;
 		} catch (error) {
 			console.error('ERROR initProviders for listening Network [' + error.code + ']: ', error);
@@ -65,11 +65,15 @@ module.exports = class daemon {
 		try {
 			this._networkProvider = [];
 			for (let i = 0; i < networkList.networks.length; i++) {
-				// TODO infura, etherscan like listening
-				this._networkProvider[i] = new ethers.providers.JsonRpcProvider(networkList.networks[i].RPC_URL);
-				if (this._networkProvider[i] === undefined || this._networkProvider[i] === null) {
-					throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
-				}
+				let validProvider;
+				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i + 1).then().catch())();
+				while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
+				if (validProvider === null) throw new Error('Invalid RPC_URL for network');
+				this._networkProvider[i] = validProvider;
+				//this._networkProvider[i] = new ethers.providers.JsonRpcProvider(networkList.networks[i].RPC_URL);
+				//if (this._networkProvider[i] === undefined || this._networkProvider[i] === null) {
+				//	throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
+				//}
 			}
 		} catch (error) {
 			console.error('ERROR initProviders [' + error.code + ']: ', error);
@@ -78,6 +82,7 @@ module.exports = class daemon {
 	}
 
 	// get the first valid provider for a network
+	// valid Provider Index by network, listening = 0, destination = network index + 1
 	// return: valid provider or null on error
 	async getFirstValidProvider(networkUrlList, networkIndex) {
 		//console.log("-- getFirstValidProvider --");
@@ -239,7 +244,7 @@ module.exports = class daemon {
 		try {
 			const amount = BigInt(log.data);
 			//console.log("amount (bigint): ", amount);
-			// TODO save intial amount for payback
+			// TODO save intial amount for refund
 			// TODO save log.transactionHash for bridge log
 
 			// check data (amount, fees, ...)
@@ -286,7 +291,7 @@ module.exports = class daemon {
 		}
 	}
 
-	// payback function
+	// refund function
 	// indexToken: token index
 	// from: address sender
 	// amount: amount to send
@@ -297,7 +302,7 @@ module.exports = class daemon {
 		console.log("amount: ", amount);
 
 		try {
-			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].privateKey4payback], this._listeningNetworkProvider);
+			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].privateKey4refund], this._listeningNetworkProvider);
 			const contract = new ethers.Contract(this._tokensList[indexToken].tokenContractAddress, transferABI, signer);
 
 			const tx = await contract.transfer(from, amount);

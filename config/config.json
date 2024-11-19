@@ -40,7 +40,7 @@
 			{
 				"activated": false,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
-				"privateKey4payback": "OPSepolia_LINK_PAYBACK",
+				"privateKey4refund": "OPSepolia_LINK_PAYBACK",
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"toNetwork": "Optimism Sepolia"
 			}
@@ -49,7 +49,7 @@
 			{
 				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
-				"privateKey4payback": "OPSepolia_LINK_PAYBACK",
+				"privateKey4refund": "OPSepolia_LINK_PAYBACK",
 				"tokenName": "LINK",
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
@@ -60,7 +60,7 @@
 			{
 				"activated": true,
 				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
-				"privateKey4payback": "ARSepolia_LINK_PAYBACK",
+				"privateKey4refund": "ARSepolia_LINK_PAYBACK",
 				"tokenName": "LINK",
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
@@ -71,7 +71,7 @@
 			{
 				"activated": true,
 				"listeningAddress": "0xF3842962562138C466649B19dEfc3C305af6BA64",
-				"privateKey4payback": "BASepolia_LINK_PAYBACK",
+				"privateKey4refund": "BASepolia_LINK_PAYBACK",
 				"tokenName": "LINK",
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
@@ -86,22 +86,40 @@
 			"networkName": "Optimism Sepolia",
 			"networkLongName": "Optimism Sepolia Testnet",
 			"symbol": "ETH",
-			"RPC_URL": "https://sepolia.optimism.io",
-			"testnet": true
+			"testnet": true,
+			"RPC_URLs": [
+				{
+					"rpcurl": "https://sepolia.optimism.io",
+					"type": "",
+					"apikey": ""
+				}
+			]
 		},
 		{
 			"networkName": "Arbitrum Sepolia",
 			"networkLongName": "Arbitrum Sepolia (testnet)",
 			"symbol": "ETH",
-			"RPC_URL": "https://arbitrum-sepolia.blockpi.network/v1/rpc/public",
-			"testnet": true
+			"testnet": true,
+			"RPC_URLs": [
+				{
+					"rpcurl": "https://arbitrum-sepolia.blockpi.network/v1/rpc/public",
+					"type": "",
+					"apikey": ""
+				}
+			]
 		},
 		{
 			"networkName": "Base Sepolia",
 			"networkLongName": "Base Sepolia (testnet)",
 			"symbol": "ETH",
-			"RPC_URL": "https://sepolia.base.org",
-			"testnet": true
+			"testnet": true,
+			"RPC_URLs": [
+				{
+					"rpcurl": "https://sepolia.base.org",
+					"type": "",
+					"apikey": ""
+				}
+			]
 		}
 	]
 }

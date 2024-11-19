@@ -1,10 +1,6 @@
 # Daemon Bridge
-Daemon for bridge
 
 Convert coins or tokens from one EVM blockchain to coins or tokens from another EVM blockchain without any interface or smart-contract.
-
-## Why
-
 Usable directly from a wallet.
 Can be use by UI and smart-contract.
 
@@ -22,14 +18,6 @@ high security with proxy.
 
 low code (less than 1000 lines)
 
-## Dev
-
-Quick and easy add-on in an interface, any dev can add a bridge to its UI quickly and easily.
-
-Works on all EVM channels.
-
-Traceability of the requests by inserting the 'transaction hash' of the request in the return requests (payment or refund).
-
 ## Install
 
 ```shell
@@ -42,8 +30,17 @@ npm i
 
 ## Run
 
+Run only one server (port: 3000)
 ```shell
 npm start
+```
+
+Launch 4 servers (ports: 3000 to 3003) demo only
+```shell
+npm run daemon1
+npm run daemon2
+npm run daemon3
+npm run daemon4
 ```
 
 ## networks and tokens
@@ -57,10 +54,29 @@ Listening on **sepolia**
 |   LINK        |   0xF3842962562138C466649B19dEfc3C305af6BA64  |   Base Sepolia (testnet)   |   LINK |
 
 
+## Diagrams
+
+working principle
+![principle](./images/principe.png)
+
+Demonstration mode
+![demo](./images/demo_config.png)
+
+Production mode
+![production](./images/prod_config.png)
+
 ## Technologies use
 
 	- etherjs (5.7.2)
     - http (0.0.1-security)
+
+## Dev
+
+Quick and easy add-on in an interface, any dev can add a bridge to its UI quickly and easily.
+
+Works on all EVM channels.
+
+Traceability of the requests by inserting the 'transaction hash' of the request in the return requests (payment or refund).
 
 ## Changelog
 
