@@ -1,98 +1,134 @@
 # Daemon Bridge
 
-Convert coins or tokens from one EVM blockchain to coins or tokens from another EVM blockchain without any interface or smart-contract.
-Usable directly from a wallet.
-Can be use by UI and smart-contract.
+An on-chain asset bridge for converting ERC-20 tokens between EVM-compatible blockchains without smart contracts or interfaces.
 
-## Security
+## Features
 
-- **No** interface.
-- **No** smart-contract.
-- **No** oracle.
-- **No** request on the daemon.
-- **No** direct access to the daemon (except for admin and proxy).
+- Direct wallet-to-wallet transfers without intermediary contracts
+- No user interface requirement - interact directly through wallet transactions
+- Chain-agnostic - works with any EVM-compatible blockchain
+- Transaction traceability via hash references
+- Minimum code footprint (<1000 lines)
+- High security through proxy architecture
 
-**Everything goes through the blockchain.**
+## Security Features
 
-high security with proxy.
+- No smart contracts to exploit
+- No oracles required
+- No direct daemon access except via proxy
+- All operations conducted through blockchain transactions
+- Proxy-based security model
 
-low code (less than 1000 lines)
+## Prerequisites
 
-## Install
+- Node.js 16+
+- npm or yarn
+- Access to EVM blockchain RPC endpoints
 
-```shell
-npm i
+## Installation
+
+```bash
+npm install
 ```
 
 ## Configuration
 
-[See doc_dev]
+1. Create `.env` file with required keys:
+```env
+ETHERSCAN_API_KEY="your_etherscan_api_key"
+INFURA_API_KEY="your_infura_api_key"
+OPSepolia_PRIVATE_KEY="your_op_sepolia_private_key"
+```
 
-## Run
+2. Configure networks and tokens in `config/config.json`
+3. See `doc_dev.md` for detailed configuration instructions
 
-Run only one server (port: 3000)
-```shell
+## Usage
+
+### Single Server Mode
+```bash
 npm start
 ```
+Launches server on port 3000
 
-Launch 4 servers (ports: 3000 to 3003) demo only
-```shell
-npm run daemon1
-npm run daemon2
-npm run daemon3
-npm run daemon4
+### Demo Mode (Multiple Servers)
+```bash
+npm run daemon1  # Port 3000
+npm run daemon2  # Port 3001
+npm run daemon3  # Port 3002
+npm run daemon4  # Port 3003
 ```
 
-## networks and tokens
+## Supported Networks & Tokens
 
-Listening on **sepolia**
+Currently supporting Sepolia testnet as the source network:
 
-|   Token   |   Listener Address |   To Network |   To Token |
-|---    |---    |:-:    |:-:    |
-|   LINK        |   0x962aC815B1249027Cfd80D6b0476C9090B5aeF39   |   Optimism Sepolia (Testnet)   |   LINK   |
-|   LINK        |   0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485  |   Arbitrum Sepolia (testnet)   |   LINK |
-|   LINK        |   0xF3842962562138C466649B19dEfc3C305af6BA64  |   Base Sepolia (testnet)   |   LINK |
+| Token | Listener Address | Destination Network | Destination Token |
+|-------|-----------------|-------------------|------------------|
+| LINK | 0x962aC815B1249027Cfd80D6b0476C9090B5aeF39 | Optimism Sepolia | LINK |
+| LINK | 0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485 | Arbitrum Sepolia | LINK |
+| LINK | 0xF3842962562138C466649B19dEfc3C305af6BA64 | Base Sepolia | LINK |
 
+## Architecture
 
-## Diagrams
+### Working Principle
+![Working Principle](./images/principe.png)
 
-**working principle**
+### Network Configurations
+Demo Mode:
+![Demo Configuration](./images/demo_config.png)
 
-![principle](./images/principe.png)
+Production Mode:
+![Production Configuration](./images/prod_config.png)
 
+## Development
 
-**Demonstration mode**
+### Project Structure
+```
+├── config/          # Configuration files
+├── images/          # Architecture diagrams
+├── hardhat-test/    # Test environment
+└── doc_dev.md       # Developer documentation
+```
 
-![demo](./images/demo_config.png)
+### Testing
+```bash
+cd hardhat-test
+npx hardhat test
+```
 
+## Error Handling
 
-**Production mode**
+- Automatic transaction validation
+- Failed transaction refunds
+- Network disruption recovery
+- Balance verification
 
-![production](./images/prod_config.png)
+## Troubleshooting
 
-## Technologies use
+1. Server won't start:
+   - Verify environment variables
+   - Check network RPC endpoints
+   - Ensure sufficient gas balance
 
-	- etherjs (5.7.2)
-    - http (0.0.1-security)
+2. Failed transactions:
+   - Monitor gas prices
+   - Verify token approvals
+   - Check network status
 
-## Dev
+## Contributing
 
-Quick and easy add-on in an interface, any dev can add a bridge to its UI quickly and easily.
-
-Works on all EVM channels.
-
-Traceability of the requests by inserting the 'transaction hash' of the request in the return requests (payment or refund).
-
-## Changelog
-
-### v1.0
-
-    Initial version
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature-name`
+3. Commit changes: `git commit -am 'Add feature'`
+4. Push branch: `git push origin feature-name`
+5. Submit Pull Request
 
 ## License
 
-MIT license
+MIT License
 
 ## Support
 
-You can contact us via [discord](https://discord.com/channels/753223385948880961/1224720192488210584)
+- [W3HC Discord server](https://discord.com/channels/753223385948880961/1224720192488210584)
+- [Docs](doc_dev.md)
