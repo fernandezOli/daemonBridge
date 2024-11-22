@@ -51,13 +51,18 @@
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"tokenName": "LINK",
-				"min": "2.0",
+				"min": "1.0",
 				"max": "10.0",
+				"fixedFees": "0.1",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Optimism Sepolia",
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
-				"toToken": "LINK"
+				"toToken": "LINK",
+				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
 				"activated": true,

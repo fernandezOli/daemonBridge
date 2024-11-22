@@ -1,5 +1,5 @@
 // Daemon.js
-const { ethers } = require('ethers');
+const { ethers, BigNumber } = require('ethers');
 require("dotenv").config();
 const deasync = require('deasync');
 const nodemailer = require('nodemailer');
@@ -46,6 +46,9 @@ module.exports = class daemon {
 			this.startListening();
 			this.initMailer();
 			//sendMessageToAdmin(null, null, 0, 0, "0xE4aB69C077896252FAFBD49EFD26B5D171A32410", 10000000);
+			//this.checkData(0, 0, ethers.utils.parseEther("10.0"), false).then(([err, result]) => {console.log("dataCheck err: ", err); console.log("dataCheck result: ", result);});
+
+			this.calcFees(0, 0, ethers.utils.parseEther("1.0")).then(fees => {console.log("fees: ", fees);});
 		} catch (error) {
 			throw error;
 		}
@@ -305,16 +308,16 @@ module.exports = class daemon {
 			if (_from.length % 2 === 0) _from = ethers.utils.hexZeroPad("0x" + _from, 20);
 			else _from = ethers.utils.hexZeroPad("0x0" + _from, 20);
 
-			// calc amount - fees
-			let amount = initialAmount;
-			//res = amount - base_fee - base_fee_dest
-			//ethers.utils.parseEther(_token.base_fee)
-			//res = res - (res * fee_rate)
-			//res = res * conversion_rate
+			let amount = initialAmount - await calcFees(_networkNum, indexToken, initialAmount);
 			
-			const dataCheck = checkData(_networkNum, indexToken, amount);
-			console.log("dataCheck", dataCheck);
-			//if (dataCheck[0] === false) { this.sendTokenBack(indexToken, _from, initialAmount); return; }
+			// verify data integrity
+			const [err, errMessage] = await this.checkData(_networkNum, indexToken, amount, false);
+			//console.log("dataCheck err: ", err);
+			if (err === false) {
+				console.log("dataCheck errMessage: ", errMessage);
+				//this.sendTokenBack(indexToken, _from, initialAmount);
+				return;
+			}
 
 			this.sendToken(_networkNum, indexToken, _from, amount, logTx);
 		} catch (error) {
@@ -384,41 +387,77 @@ module.exports = class daemon {
 	// Check balance, min, max, fees
 	// networkNum: num of the network
 	// indexToken: token index
-	// amount: amount to send
+	// amount: amount to be send in wei
+	// nativeToken: true for native token false for token
 	// return: true and empty message or false and error message on error
-	async checkData(networkNum, indexToken, amount) {
-		//console.log("checkData: " + networkNum);
+	async checkData(networkNum, indexToken, amount, nativeToken) {
+		//console.log("-- checkData --");
+		//console.log("amount: ", amount);
 
 		const _provider = this._networkProvider[networkNum];
 		const _token = this._tokensList[indexToken];
-
-		// TODO check private key
-		//expect(process.env.Sepolia_PRIVATE_KEY, "Invalid private key !").to.be.a.properPrivateKey;
-		if (process.env[_token.toPrivateKey] === undefined || process.env[_token.toPrivateKey] === null || process.env[_token.toPrivateKey] === "") {
-			return [false, "Invalid private key"];
-		}
-
 		const signer = new ethers.Wallet(process.env[_token.toPrivateKey], _provider);
 
 		// Check balances
 		const nativeBalance = await _provider.getBalance(signer.address); // native token balance
 		const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
 		const tokenBalance = await contract.balanceOf(signer.address); // token balance
-		if (nativeBalance < ethers.utils.parseEther("1.0")) {
+		if (ethers.utils.parseEther("1.0").lt(nativeBalance)) {
 			return [false, "Insufficient funds for intrinsic transaction cost"];
 		}
-		if (tokenBalance < ethers.utils.parseEther("1.0")) {
-			return [false, "Insufficient token funds for transaction"];
+		if (nativeToken) {
+			if (amount.gt(nativeBalance)) {
+				return [false, "Insufficient native token funds for transaction"];
+			}
+		} else {
+			if (amount.gt(tokenBalance)) {
+				return [false, "Insufficient token funds for transaction"];
+			}
 		}
 
 		// Check min, max
-		if (ethers.utils.parseEther(_token.min) > amount) {
+		if (ethers.utils.parseEther(_token.min).gt(amount)) {
 			return [false, "Invalid amount, less than minimum amount"];
 		}
-		if (ethers.utils.parseEther(_token.max) < amount) {
+		if (ethers.utils.parseEther(_token.max).lt(amount)) {
 			return [false, "Invalid amount, greater than maximum amount"];
 		}
 		return [true, ""];
+	}
+
+	// calc fees for amount to be sent
+	// networkNum: num of the network
+	// indexToken: token index
+	// amount: amount (BigNumber)
+	// return: fees for this amount (BigNumber)
+	async calcFees(networkNum, indexToken, amount) {
+		//console.log("-- calcFees --");
+		//console.log("networkNum: ", networkNum);
+		//console.log("indexToken: ", indexToken);
+		//console.log("amount: ", amount);
+
+		// calc amount - fees
+		const _provider = this._networkProvider[networkNum];
+		const _token = this._tokensList[indexToken];
+
+		let relayerFee = ethers.utils.parseEther(_token.fixedFees);
+		let relayerPcent = amount * _token.feesPcent;
+		let pcent = BigNumber.from(relayerPcent.toString());
+		relayerFee.add(pcent); 
+		console.log("total relayerFee: ", relayerFee);
+
+		const getGasPrice = await _provider.getFeeData(); //  in BC2 (dest) coin, in wei
+		//let getGasPrice = await _provider.estimateGas({ from: "0xe5ee2053982073636a9E89Fdce0AC392869E9165", to: "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", value: 1});
+		//console.log("gasPrice: ", getGasPrice);
+		let destinationTxFee = getGasPrice.gasPrice * 21000;
+		console.log("destinationTxFee: ", destinationTxFee);
+		destinationTxFee = destinationTxFee * 1/_token.conversionRateBC1toBC2; // conversion BC2 (dest) to BC1 (src)
+		destinationTxFee = destinationTxFee * _token.conversionRateBC1toTokenBC1; // convert to token
+		destinationTxFee = BigNumber.from(destinationTxFee.toString());
+		console.log("destinationTxFee: ", destinationTxFee);
+
+		let totalFees = relayerFee.add(destinationTxFee);
+		return totalFees;
 	}
 
 	//***********************
