@@ -46,9 +46,10 @@ module.exports = class daemon {
 			this.startListening();
 			this.initMailer();
 			//sendMessageToAdmin(null, null, 0, 0, "0xE4aB69C077896252FAFBD49EFD26B5D171A32410", 10000000);
-			//this.checkData(0, 0, ethers.utils.parseEther("10.0"), false).then(([err, result]) => {console.log("dataCheck err: ", err); console.log("dataCheck result: ", result);});
+			//this.checkData(0, 0, BigNumber.from(ethers.utils.parseEther("2.0")), false).then(([err, result]) => {console.log("dataCheck err: ", err); console.log("dataCheck result: ", result);});
 
-			this.calcFees(0, 0, ethers.utils.parseEther("1.0")).then(fees => {console.log("fees: ", fees);});
+			//amount.sub(await this.calcFees(_networkNum, indexToken, BigNumber.from(initialAmount)));
+			//this.calcFees(0, 0, BigNumber.from(ethers.utils.parseEther("2.0"))).then(fees => {console.log("fees: ", fees);});
 		} catch (error) {
 			throw error;
 		}
@@ -108,7 +109,7 @@ module.exports = class daemon {
 			(async () => validProvider = await this.getFirstValidProvider(networkList.listeningNetwork.RPC_URLs, 0).then().catch())();
 			while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
 			if (validProvider === null) throw new Error('Invalid RPC_URL for listening network');
-			//console.log("validProvider [initProviders]: ", validProvider);
+			//console.log("[initProviders]listening Network validProvider: ", validProvider);
 			this._listeningNetworkProvider = validProvider;
 		} catch (error) {
 			console.error('ERROR initProviders for listening Network [' + error.code + ']: ', error);
@@ -122,12 +123,8 @@ module.exports = class daemon {
 				let validProvider;
 				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i + 1).then().catch())();
 				while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-				if (validProvider === null) throw new Error('Invalid RPC_URL for network');
+				if (validProvider === null) throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
 				this._networkProvider[i] = validProvider;
-				//this._networkProvider[i] = new ethers.providers.JsonRpcProvider(networkList.networks[i].RPC_URL);
-				//if (this._networkProvider[i] === undefined || this._networkProvider[i] === null) {
-				//	throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
-				//}
 			}
 		} catch (error) {
 			console.error('ERROR initProviders [' + error.code + ']: ', error);
@@ -291,38 +288,51 @@ module.exports = class daemon {
 	// struct log: transaction log
 	// indexToken: token index
 	async parseEvent(log, indexToken) {
-		//console.log("-- parseEvent --");
+		console.log("-- parseEvent --");
 		//console.log("parseEvent[indexToken]: ", indexToken);
 		//console.log("parseEvent[log]:", log);
-		const logTx = log.transactionHash;
+
+		let initialAmount = 0;
+		let _from = "";
+		let amount = 0;
+
+		let logTx = null;
+		const _token = this._tokensList[indexToken];
+		const _networkNum = _token.toNetworkIndex;
 
 		try {
-			const initialAmount = BigInt(log.data);
-			//console.log("amount (bigint): ", amount);
-
-			const _token = this._tokensList[indexToken];
-			const _networkNum = _token.toNetworkIndex;
+			logTx = log.transactionHash;
+			initialAmount = BigInt(log.data);
 
 			// get to and from and convert address length 32 to address length 20
-			let _from = BigInt(log.topics[1]).toString(16);
+			_from = BigInt(log.topics[1]).toString(16);
 			if (_from.length % 2 === 0) _from = ethers.utils.hexZeroPad("0x" + _from, 20);
 			else _from = ethers.utils.hexZeroPad("0x0" + _from, 20);
+		} catch (error) {
+			console.error('Error parseEvent, parse log error [' + error.code + ']: ', error);
+			//this.refundToken(indexToken, _from, amount, logTx); // error _from ????
+			return;
+		}
 
-			let amount = initialAmount - await calcFees(_networkNum, indexToken, initialAmount);
-			
+		try {
+			// calc amount
+			amount = BigNumber.from(initialAmount);
+			amount.sub(await this.calcFees(_networkNum, indexToken, BigNumber.from(initialAmount)));
+
 			// verify data integrity
-			const [err, errMessage] = await this.checkData(_networkNum, indexToken, amount, false);
-			//console.log("dataCheck err: ", err);
-			if (err === false) {
-				console.log("dataCheck errMessage: ", errMessage);
-				//this.sendTokenBack(indexToken, _from, initialAmount);
+			const [check, checkMessage] = await this.checkData(_networkNum, indexToken, amount, false);
+			//console.log("dataCheck check: ", check);
+			if (check === false) {
+				console.log("Error DataCheck Message: ", checkMessage);
+				if (ethers.utils.parseEther(_token.minNoRefund).gt(initialAmount)) return;
+				this.refundToken(indexToken, _from, initialAmount, logTx);
 				return;
 			}
 
 			this.sendToken(_networkNum, indexToken, _from, amount, logTx);
 		} catch (error) {
-			this.sendTokenBack(indexToken, from, amount, logTx);
 			console.error('Error parseEvent [' + error.code + ']: ', error);
+			this.refundToken(indexToken, _from, initialAmount, logTx);
 		}
 	}
 
@@ -333,7 +343,7 @@ module.exports = class daemon {
 	// amount: amount to send
 	// logTx: sender transaction Hash
 	async sendToken(networkNum, indexToken, from, amount, logTx) {
-		//console.log("-- sendToken --");
+		console.log("-- sendToken --");
 		//console.log("from: ", from);
 		//console.log("amount: ", amount);
 		//console.log("logTx: ", logTx);
@@ -346,11 +356,11 @@ module.exports = class daemon {
 			const tx = await contract.transfer(from, amount);
 			await this._networkProvider[networkNum].waitForTransaction(tx.hash, 1);
 
-			console.log("Transfert success tx: ", tx.hash);
+			console.log("[sendToken]Transfert success tx: ", tx.hash);
 		} catch (error) {
 			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
-			this.sendTokenBack(indexToken, from, amount, logTx);
+			this.refundToken(indexToken, from, amount, logTx);
 			this.sendMessageToAdmin('sendToken', error, networkNum, indexToken, from, amount);
 			console.error('Error (function) sendToken [' + error.code + ']: ', error);
 		}
@@ -361,12 +371,12 @@ module.exports = class daemon {
 	// from: address sender
 	// amount: amount to send
 	// logTx: sender transaction Hash
-	async sendTokenBack(indexToken, from, amount, logTx) {
-		console.log("-- sendTokenBack --");
-		console.log("indexToken: ", indexToken);
-		console.log("from: ", from);
-		console.log("amount: ", amount);
-		console.log("logTx: ", logTx);
+	async refundToken(indexToken, from, amount, logTx) {
+		console.log("-- refundToken --");
+		//console.log("indexToken: ", indexToken);
+		//console.log("from: ", from);
+		//console.log("amount: ", amount);
+		//console.log("logTx: ", logTx);
 
 		try {
 			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].privateKey4refund], this._listeningNetworkProvider);
@@ -375,24 +385,25 @@ module.exports = class daemon {
 			const tx = await contract.transfer(from, amount);
 			await this._listeningNetworkProvider.waitForTransaction(tx.hash, 1);
 
-			console.log("Transfert success tx: ", tx.hash);
+			console.log("[Refund]Transfert success tx: ", tx.hash);
 		} catch (error) {
 			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
-			this.sendMessageToAdmin('sendTokenBack', error, networkNum, indexToken, from, amount);
-			console.error('Error (function) sendTokenBack [' + error.code + ']: ', error);
+			this.sendMessageToAdmin('refundToken', error, networkNum, indexToken, from, amount);
+			console.error('Error (function) refundToken [' + error.code + ']: ', error);
 		}
 	}
 
 	// Check balance, min, max, fees
 	// networkNum: num of the network
 	// indexToken: token index
-	// amount: amount to be send in wei
+	// amount: amount to be send in wei (BigNumber)
 	// nativeToken: true for native token false for token
 	// return: true and empty message or false and error message on error
 	async checkData(networkNum, indexToken, amount, nativeToken) {
 		//console.log("-- checkData --");
 		//console.log("amount: ", amount);
+		//console.log("amount typeof: ", typeof amount);
 
 		const _provider = this._networkProvider[networkNum];
 		const _token = this._tokensList[indexToken];
@@ -402,7 +413,12 @@ module.exports = class daemon {
 		const nativeBalance = await _provider.getBalance(signer.address); // native token balance
 		const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
 		const tokenBalance = await contract.balanceOf(signer.address); // token balance
-		if (ethers.utils.parseEther("1.0").lt(nativeBalance)) {
+		//console.log("nativeBalance: ", nativeBalance);
+		//console.log("nativeBalance typeof: ", ethers.utils.formatEther(nativeBalance));
+		//console.log("parseEther: ", ethers.utils.parseEther("1.0"));
+		//console.log("parseEther typeof: ", typeof ethers.utils.parseEther("1.0"));
+
+		if (ethers.utils.parseEther("1.0").gt(nativeBalance)) {
 			return [false, "Insufficient funds for intrinsic transaction cost"];
 		}
 		if (nativeToken) {
@@ -435,26 +451,38 @@ module.exports = class daemon {
 		//console.log("networkNum: ", networkNum);
 		//console.log("indexToken: ", indexToken);
 		//console.log("amount: ", amount);
+		//console.log("amount BigInt: ", amount.toBigInt());
+
+		return BigNumber.from(0);
 
 		// calc amount - fees
 		const _provider = this._networkProvider[networkNum];
 		const _token = this._tokensList[indexToken];
 
 		let relayerFee = ethers.utils.parseEther(_token.fixedFees);
-		let relayerPcent = amount * _token.feesPcent;
+		console.log("relayerFee: ", relayerFee);
+		console.log("relayerFee BigInt: ", relayerFee.toBigInt());
+		//let relayerPcent = amount.mul(BigNumber.from((_token.feesPcent * 10^18)));
+		let relayerPcent = amount * _token.feesPcent; //Number(myBigInt) .toBigInteger();
+		console.log("relayerPcent: ", relayerPcent);
+		//console.log("relayerPcent typeof: ", typeof relayerPcent);
 		let pcent = BigNumber.from(relayerPcent.toString());
-		relayerFee.add(pcent); 
+		console.log("pcent: ", pcent);
+		console.log("pcent BigInt: ", pcent.toBigInt());
+		relayerFee.add(pcent);
+		//relayerFee.add(relayerPcent);
 		console.log("total relayerFee: ", relayerFee);
+		console.log("total relayerFee BigInt: ", relayerFee.toBigInt());
 
 		const getGasPrice = await _provider.getFeeData(); //  in BC2 (dest) coin, in wei
 		//let getGasPrice = await _provider.estimateGas({ from: "0xe5ee2053982073636a9E89Fdce0AC392869E9165", to: "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", value: 1});
 		//console.log("gasPrice: ", getGasPrice);
 		let destinationTxFee = getGasPrice.gasPrice * 21000;
-		console.log("destinationTxFee: ", destinationTxFee);
+		//console.log("destinationTxFee: ", destinationTxFee);
 		destinationTxFee = destinationTxFee * 1/_token.conversionRateBC1toBC2; // conversion BC2 (dest) to BC1 (src)
 		destinationTxFee = destinationTxFee * _token.conversionRateBC1toTokenBC1; // convert to token
 		destinationTxFee = BigNumber.from(destinationTxFee.toString());
-		console.log("destinationTxFee: ", destinationTxFee);
+		//console.log("destinationTxFee: ", destinationTxFee);
 
 		let totalFees = relayerFee.add(destinationTxFee);
 		return totalFees;

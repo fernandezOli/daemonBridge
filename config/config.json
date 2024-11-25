@@ -11,12 +11,12 @@
 		"testnet": true,
 		"RPC_URLs": [
 			{
-				"rpcurl": "https://rpc2.sepolia.org",
+				"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
 				"type": "",
 				"apikey": ""
 			},
 			{
-				"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
+				"rpcurl": "https://rpc2.sepolia.org",
 				"type": "",
 				"apikey": ""
 			},
@@ -51,7 +51,8 @@
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"tokenName": "LINK",
-				"min": "1.0",
+				"minNoRefund": "0.01",
+				"min": "0.5",
 				"max": "10.0",
 				"fixedFees": "0.1",
 				"feesPcent": 0.01,
@@ -69,22 +70,38 @@
 				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
 				"privateKey4refund": "ARSepolia_LINK_REFUND",
 				"tokenName": "LINK",
+				"minNoRefund": "0.01",
+				"min": "0.5",
+				"max": "10.0",
+				"fixedFees": "0.1",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Arbitrum Sepolia",
 				"toTokenContractAddress": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
-				"toToken": "LINK"
+				"toToken": "LINK",
+				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
 				"activated": true,
 				"listeningAddress": "0xF3842962562138C466649B19dEfc3C305af6BA64",
 				"privateKey4refund": "BASepolia_LINK_REFUND",
 				"tokenName": "LINK",
+				"minNoRefund": "0.01",
+				"min": "0.5",
+				"max": "10.0",
+				"fixedFees": "0.1",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Base Sepolia",
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
-				"toToken": "LINK"
+				"toToken": "LINK",
+				"conversionRateTokenBC1toTokenBC2": 1.0
 			}
 		]
 	},

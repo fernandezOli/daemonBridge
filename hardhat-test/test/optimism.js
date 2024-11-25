@@ -10,12 +10,12 @@ console.log("");
 console.log("From network/token: ", config.listeningNetwork.networkName + "/" + testToken.tokenName);
 console.log("To network/token: ", testToken.toNetwork + "/" + testToken.toToken);
 console.log("listening Address: ", testToken.listeningAddress);
-console.log("Send Token Address: ", testToken.tokenContractAddress);
-console.log("Receive Token Address: ", testToken.toTokenContractAddress);
+console.log("Send Contract Token Address: ", testToken.tokenContractAddress);
+console.log("Receive Contract Token Address: ", testToken.toTokenContractAddress);
 
 // use the fisrt entry of RPC_URL
 const providerSend = new ethers.providers.JsonRpcProvider(config.listeningNetwork.RPC_URLs[0].rpcurl); // sepolia
-const providerReceive = new ethers.providers.JsonRpcProvider(config.networks[0].RPC_URL); // optimism sepolia
+const providerReceive = new ethers.providers.JsonRpcProvider(config.networks[0].RPC_URLs[0].rpcurl); // optimism sepolia
 const contractSendTokenAddress = testToken.tokenContractAddress; // sepolia link 0x779877A7B0D9E8603169DdbD7836e478b4624789
 const contractReceiveTokenAddress = testToken.toTokenContractAddress; // optimism sepolia link 0xE4aB69C077896252FAFBD49EFD26B5D171A32410
 
@@ -32,10 +32,14 @@ const waitingTime = 1000;
 const maxTime = 20;
 
 expect(process.env.Sepolia_PRIVATE_KEY, "Invalid private key !").to.be.a.properPrivateKey;
-const signer = new ethers.Wallet(process.env.Sepolia_PRIVATE_KEY, providerSend);
+const signerSender = new ethers.Wallet(process.env.Sepolia_PRIVATE_KEY, providerSend);
 
-describe("test Sepolia optimism", function () {
-    it("send token", async function () {
+let signer_balance = null;
+let signer_receive_balance = null;
+let gasPrice = null;
+
+describe("Test Sepolia to Optimism", function () {
+	beforeEach(async function () {
 		// check if daemon is running
 		try {
 			await fetch(serverAddress);
@@ -44,53 +48,80 @@ describe("test Sepolia optimism", function () {
 		}
 
 		// get and check initial network balance
-		signer_balance = await providerSend.getBalance(signer.address);
+		signer_balance = await providerSend.getBalance(signerSender.address); // balance In Wei { BigNumber: "37426320346873870455" }
 		signer_receive_balance = await providerReceive.getBalance(signerReceive);
+		expect((signer_balance.gt(ethers.BigNumber.from(ethers.utils.parseEther("1.0")))), "Sender Not enough network coins [sepolia] for fees !").to.be.true;
+		expect((signer_receive_balance.gt(ethers.BigNumber.from(ethers.utils.parseEther("1.0")))), "Receiver Not enough network coins [optimism sepolia] for fees !").to.be.true;
 
-		expect(signer_balance, "Sender Not enough network coins for fees !").to.gt(1);
-		expect(signer_receive_balance, "Receiver Not enough network coins for fees !").to.gt(1);
+		//if(gasPrice === null) gasPrice = await providerSend.getGasPrice(); // The gas price (in wei) return BigNumber
+		//gasPrice = "400000000000";
+		gasPrice = 400000000000;
+	});
 
-		// get initial token balance
-		const contractSend = new ethers.Contract(contractSendTokenAddress, abi, providerSend);
-		const initial_balance_of_emit_token = await contractSend.balanceOf(signer.address);
+	describe("-- Test token --", function () {
+		it("Test transfert token", async function () {
 
-		const contractReceive = new ethers.Contract(contractReceiveTokenAddress, abi, providerReceive);
-		const initial_balance_of_receiver = await contractReceive.balanceOf(signerReceive);
+			// get initial token balance
+			const contractSend = new ethers.Contract(contractSendTokenAddress, abi, providerSend);
+			const initial_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
 
-		// check token balances
-		expect(initial_balance_of_emit_token, "Sender not enough tokens !").to.gt(10);
-		expect(initial_balance_of_receiver, "Receiver not enough tokens !").to.gt(10);
+			const contractReceive = new ethers.Contract(contractReceiveTokenAddress, abi, providerReceive);
+			const initial_balance_of_receiver = await contractReceive.balanceOf(signerReceive);
 
-		return;
+			const amount = ethers.utils.parseEther("2.0");
 
-		// send tokens
-		const initial_balance_of_receive_token = await contractReceive.balanceOf(signer.address);
+			// check token balances
+			expect(initial_balance_of_emit_token.gt(ethers.BigNumber.from(amount)), "Sender not enough tokens !").to.be.true;
+			expect(initial_balance_of_receiver.gt(ethers.BigNumber.from(amount)), "Receiver not enough tokens !").to.be.true; //default convert = 1/1
 
-		//await signer.sendTransaction({ to: "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", value: ethers.utils.parseEther("1.0") }); // Sends exactly 1.0 ether
-		const transactionTx = await contractSend.connect(signer).transfer(signerReceive, "1000000000000000000", {gasPrice: 200000000000, gasLimit: 177302});
-		await transactionTx.wait(1);
-		const new_balance_of_emit_token = await contractSend.balanceOf(signer.address);
-		expect(new_balance_of_emit_token).to.lt(initial_balance_of_emit_token);
-    
-		// wait for exchange or refund
-		let new_balance_of_receive_token = 0;
-		let i = 0;
-		while (true) {
-			await sleep(waitingTime);
-			new_balance_of_receive_token = await contractReceive.balanceOf(signer.address);
-			if (new_balance_of_receive_token !== initial_balance_of_receive_token) break;
-			// TODO check refund
-			i++;
-			if (i > maxTime) break;
-		}
+			//return;
 
-		// ok/error
-		if (i > maxTime) {
-			expect(true, "Error max waiting time !").to.be.false;
-		}
-		else {
-			expect(new_balance_of_receive_token).to.gt(initial_balance_of_receive_token);
-		}
+			console.log("Sending token ...");
+			// send tokens
+			const initial_balance_of_receive_token = await contractReceive.balanceOf(signerSender.address);
+
+			//await hardhatToken.connect(addr1).transfer(addr2.address, 50);
+			const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount); // gas = 200000000000
+			//const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount, { gasPrice: gasPrice, gasLimit: 40000 }); // 200000000000
+			console.log("transactionTx: ", transactionTx.hash);
+			await transactionTx.wait(1); // error on wait(1) => change rpc_url
+			//await providerSend.waitForTransaction(transactionTx.hash, 3);
+
+			let new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
+			expect(new_balance_of_emit_token, "new_balance_of_emit_token unchanged").to.lt(initial_balance_of_emit_token);
+
+			// wait for exchange or refund
+			console.log("Waiting ...");
+			let new_balance_of_receive_token = 0;
+			let i = 0;
+			while (true) {
+				await sleep(waitingTime);
+				new_balance_of_receive_token = await contractReceive.balanceOf(signerSender.address);
+				if (!new_balance_of_receive_token.eq(initial_balance_of_receive_token)) break;
+				new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
+				if(new_balance_of_emit_token.eq(initial_balance_of_emit_token)) break;
+				i++;
+				if (i > maxTime) break;
+			}
+
+			// ok/error
+			if (i > maxTime) {
+				expect(true, "Error max waiting time !").to.be.false;
+			}
+			else {
+				expect(new_balance_of_emit_token, "Refund !!").to.not.eq(initial_balance_of_emit_token);
+				expect(new_balance_of_receive_token, "No token receive !!!").to.gt(initial_balance_of_receive_token);
+			}
+		});
+
+		xit("Test max token", async function () {
+		});
+
+		xit("Test min token", async function () {
+		});
+
+		xit("Test minNoRefund token", async function () {
+		});
 	});
 });
 
