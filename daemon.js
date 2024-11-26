@@ -26,8 +26,9 @@ const transferABI = [
 	"function transfer(address to, uint amount) returns(bool)",
 ];
 
-
 let validProviderIndex = []; // valid Provider Index by network, listening = 0, destination = network index + 1
+const Status = { NONE: "NONE", STARTING: "STARTING", WAITING: "WAITING", SLEEPING: "SLEEPING", RUNNING: "RUNNING", FAIL: "FAIL" };
+let status = Status.NONE;
 
 module.exports = class daemon {
 	_listeningNetworkProvider = null;
@@ -37,20 +38,16 @@ module.exports = class daemon {
 
 	constructor() {
 		//console.log("-- loading daemon--");
-		//const providerTest = ethers.providers.getDefaultProvider('sepolia');
-		//console.log("providerTest: ", providerTest);
 
 		try {
+			status = Status.STARTING;
 			this.checkPrivateKeys();
 			this.initProviders();
 			this.startListening();
 			this.initMailer();
-			//sendMessageToAdmin(null, null, 0, 0, "0xE4aB69C077896252FAFBD49EFD26B5D171A32410", 10000000);
-			//this.checkData(0, 0, BigNumber.from(ethers.utils.parseEther("2.0")), false).then(([err, result]) => {console.log("dataCheck err: ", err); console.log("dataCheck result: ", result);});
-
-			//amount.sub(await this.calcFees(_networkNum, indexToken, BigNumber.from(initialAmount)));
-			//this.calcFees(0, 0, BigNumber.from(ethers.utils.parseEther("2.0"))).then(fees => {console.log("fees: ", fees);});
+			status = Status.RUNNING;
 		} catch (error) {
+			status = Status.FAIL;
 			throw error;
 		}
 	}
@@ -179,7 +176,7 @@ module.exports = class daemon {
 			throw new Error('ERROR start listening, no provider');
 		}
 
-		//this._listeningNetworkProvider.removeAllListeners();
+		this._listeningNetworkProvider.removeAllListeners();
 		// Native token
 		try {
 			if (networkList.listeningNetwork.activeNativeToken) {
@@ -187,7 +184,7 @@ module.exports = class daemon {
 				this._listeningNetworkProvider.on("block", (blockNumber) => { this.parseBlock(blockNumber, 0) });
 				console.log("Start listening for native token");
 			}
-			this._listeningNetworkProvider.on("error", (error) => { console.error('Error _listeningNetworkProvider.on: ', error)} );
+			this._listeningNetworkProvider.on("error", (error) => { this.listeningProviderError(error)} );
 			// TODO: make address list of listeners
 		} catch (error) {
 			console.error('ERROR start listening for native token');
@@ -222,6 +219,31 @@ module.exports = class daemon {
 			throw error;
 		}
 		// TODO add timeout to reload the filters
+	}
+
+	// get error from listening provider
+	async listeningProviderError(error) {
+		//console.log("--- listeningProviderError ---");
+		status = Status.FAIL;
+		if (error.code === "SERVER_ERROR") {
+			console.error('Error listening Provider: SERVER_ERROR, restart listening !');
+			// restart listening (TODO and rpcurl ?)
+			if (this.restartListening()) status = Status.RUNNING;
+			return;
+		}
+		console.error('Error listening Provider: ', error);
+	}
+
+	// restart listening provider
+	async restartListening() {
+		//console.log("--- restartListening ---");
+		try {
+			this.startListening();
+			return true;
+		} catch(error) {
+			console.error('Error restarting listening: ', error);
+			return false;
+		}
 	}
 
 	//**********************
@@ -321,10 +343,12 @@ module.exports = class daemon {
 
 			// verify data integrity
 			const [check, checkMessage] = await this.checkData(_networkNum, indexToken, amount, false);
-			//console.log("dataCheck check: ", check);
 			if (check === false) {
 				console.log("Error DataCheck Message: ", checkMessage);
-				if (ethers.utils.parseEther(_token.minNoRefund).gt(initialAmount)) return;
+				if (ethers.utils.parseEther(_token.minNoRefund).gt(BigNumber.from(initialAmount))) {
+					console.log("[NoRefund]Invalid amount, less than No Refund amount");
+					return;
+				}
 				this.refundToken(indexToken, _from, initialAmount, logTx);
 				return;
 			}
@@ -441,8 +465,8 @@ module.exports = class daemon {
 		return [true, ""];
 	}
 
-	// calc fees for amount to be sent
-	// networkNum: num of the network
+	// calc fees for amount to be sent (amount - service_fees - destination_fees)
+	// networkNum: num of the destination network
 	// indexToken: token index
 	// amount: amount (BigNumber)
 	// return: fees for this amount (BigNumber)
@@ -451,40 +475,35 @@ module.exports = class daemon {
 		//console.log("networkNum: ", networkNum);
 		//console.log("indexToken: ", indexToken);
 		//console.log("amount: ", amount);
-		//console.log("amount BigInt: ", amount.toBigInt());
+		//console.log("amount: ", ethers.utils.formatEther(amount));
 
-		return BigNumber.from(0);
-
-		// calc amount - fees
 		const _provider = this._networkProvider[networkNum];
 		const _token = this._tokensList[indexToken];
 
 		let relayerFee = ethers.utils.parseEther(_token.fixedFees);
-		console.log("relayerFee: ", relayerFee);
-		console.log("relayerFee BigInt: ", relayerFee.toBigInt());
-		//let relayerPcent = amount.mul(BigNumber.from((_token.feesPcent * 10^18)));
-		let relayerPcent = amount * _token.feesPcent; //Number(myBigInt) .toBigInteger();
-		console.log("relayerPcent: ", relayerPcent);
-		//console.log("relayerPcent typeof: ", typeof relayerPcent);
+		//console.log("relayerFee formatEther: ", ethers.utils.formatEther(relayerFee));
+
+		let relayerPcent = amount * _token.feesPcent;
+		//console.log("relayerPcent: ", relayerPcent);
+
 		let pcent = BigNumber.from(relayerPcent.toString());
-		console.log("pcent: ", pcent);
-		console.log("pcent BigInt: ", pcent.toBigInt());
-		relayerFee.add(pcent);
-		//relayerFee.add(relayerPcent);
-		console.log("total relayerFee: ", relayerFee);
-		console.log("total relayerFee BigInt: ", relayerFee.toBigInt());
+		//console.log("pcent formatEther: ", ethers.utils.formatEther(pcent));
+
+		relayerFee = relayerFee.add(pcent);
+		//console.log("total relayerFee formatEther: ", ethers.utils.formatEther(relayerFee));
 
 		const getGasPrice = await _provider.getFeeData(); //  in BC2 (dest) coin, in wei
-		//let getGasPrice = await _provider.estimateGas({ from: "0xe5ee2053982073636a9E89Fdce0AC392869E9165", to: "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39", value: 1});
-		//console.log("gasPrice: ", getGasPrice);
+		//console.log("gasPrice: ", getGasPrice.gasPrice);
+
 		let destinationTxFee = getGasPrice.gasPrice * 21000;
 		//console.log("destinationTxFee: ", destinationTxFee);
 		destinationTxFee = destinationTxFee * 1/_token.conversionRateBC1toBC2; // conversion BC2 (dest) to BC1 (src)
 		destinationTxFee = destinationTxFee * _token.conversionRateBC1toTokenBC1; // convert to token
 		destinationTxFee = BigNumber.from(destinationTxFee.toString());
-		//console.log("destinationTxFee: ", destinationTxFee);
+		//console.log("destinationTxFee: ", ethers.utils.formatEther(destinationTxFee));
 
 		let totalFees = relayerFee.add(destinationTxFee);
+		//console.log("total Fees formatEther: ", ethers.utils.formatEther(totalFees));
 		return totalFees;
 	}
 
@@ -506,7 +525,10 @@ module.exports = class daemon {
 			daemonObject.networks = networkList.networks;
 			for (let i = 0; i < this._tokensList.length; i++) {
 				if (this._tokensList[i].activated !== true) continue;
-				resultTokensList.push(this._tokensList[i]);
+				const count = resultTokensList.push(this._tokensList[i]);
+				delete resultTokensList[count - 1].privateKey4refund;
+				delete resultTokensList[count - 1].toPrivateKey;
+				delete resultTokensList[count - 1].toNetworkIndex;
 			}
 			daemonObject.tokensList = resultTokensList;
 			return JSON.stringify(daemonObject);
@@ -514,6 +536,12 @@ module.exports = class daemon {
 			console.error('Error htmlJson: ', error);
 			return "Error: create tokens list";
 		}
+	}
+
+	// get status for html request
+	getStatus() {
+		//console.log("--- getStatus ---");
+		return status;
 	}
 
 	//****************

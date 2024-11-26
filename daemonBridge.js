@@ -56,6 +56,7 @@ async function createServer(req, res) {
 			if (req.method === 'GET') {
 				let _body = "ok";
 				if(req.url.match("/json")) _body = daemon.makeJson();
+				if(req.url.match("/status")) _body = daemon.getStatus();
 				res.writeHead(200, { 'Content-Length': Buffer.byteLength(_body), 'Content-Type': 'text/plain' });
 				res.end(_body);
 			} else {
