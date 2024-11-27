@@ -4,23 +4,9 @@ require("dotenv").config();
 const deasync = require('deasync');
 const nodemailer = require('nodemailer');
 
+const initialConfig = require('./config/config.json');
 const networkList = require('./config/config.json');
-/*
-const transferABI = [
-	{
-		"inputs": [
-			{ "internalType": "address", "name": "to", "type": "address" },
-			{ "internalType": "uint256", "name": "amount", "type": "uint256" }
-		],
-		"name": "transfer",
-		"outputs": [
-			{ "internalType": "bool", "name": "", "type": "bool" }
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	}
-];
-*/
+
 const transferABI = [
 	"function balanceOf(address) view returns(uint)",
 	"function transfer(address to, uint amount) returns(bool)",
@@ -45,6 +31,7 @@ module.exports = class daemon {
 			this.initProviders();
 			this.startListening();
 			this.initMailer();
+			this.updateBalances();
 			status = Status.RUNNING;
 		} catch (error) {
 			status = Status.FAIL;
@@ -57,42 +44,53 @@ module.exports = class daemon {
 		//console.log("-- check Private Keys --");
 		let _privateKey = null;
 		let _token = null;
+		let signer = null;
 
 		// native private keys
 		for (let i = 0; i < networkList.listeningNetwork.nativeToken.length; i++) {
 			_token = networkList.listeningNetwork.nativeToken[i];
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
-				throw new Error('Invalid native private key for toPrivateKey');
+				throw new Error('Invalid (null) native private key for toPrivateKey in config');
 			}
 			_privateKey = _token.toPrivateKey;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined native private key for toPrivateKey');
+				throw new Error('Undefined native private key for toPrivateKey in .env');
 			}
+			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
+			_token.toPublicKey = signer.address;
+
 			if (_token.privateKey4refund === undefined || _token.privateKey4refund === null || _token.privateKey4refund === "") {
-				throw new Error('Invalid native private key for privateKey4refund');
+				throw new Error('Invalid native private key for privateKey4refund in config');
 			}
 			_privateKey = _token.privateKey4refund;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined native private key for privateKey4refund');
+				throw new Error('Undefined native private key for privateKey4refund in .env');
 			}
+			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
+			_token.publicKey4refund = signer.address;
 		}
 		// tokens private keys
 		for (let i = 0; i < networkList.listeningNetwork.tokens.length; i++) {
 			_token = networkList.listeningNetwork.tokens[i];
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
-				throw new Error('Invalid native private key for toPrivateKey');
+				throw new Error('Invalid token private key for toPrivateKey in config');
 			}
 			_privateKey = _token.toPrivateKey;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined native private key for toPrivateKey');
+				throw new Error('Undefined token private key for toPrivateKey .env');
 			}
+			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
+			_token.toPublicKey = signer.address;
+
 			if (_token.privateKey4refund === undefined || _token.privateKey4refund === null || _token.privateKey4refund === "") {
-				throw new Error('Invalid native private key for privateKey4refund');
+				throw new Error('Invalid token private key for privateKey4refund in config');
 			}
 			_privateKey = _token.privateKey4refund;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined native private key for privateKey4refund');
+				throw new Error('Undefined token private key for privateKey4refund .env');
 			}
+			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
+			_token.publicKey4refund = signer.address;
 		}
 	}
 
@@ -195,6 +193,10 @@ module.exports = class daemon {
 		try {
 			this._tokensList = networkList.listeningNetwork.tokens;
 			for (let tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
+				if (initialConfig.listeningNetwork.tokens[tokenIndex].activated !== true) {
+					this._tokensList[tokenIndex].activated = false;
+					continue;
+				}
 				if (this._tokensList[tokenIndex].listeningAddress === undefined ||
 					this._tokensList[tokenIndex].listeningAddress === null ||
 					this._tokensList[tokenIndex].listeningAddress === "0x") {
@@ -219,6 +221,41 @@ module.exports = class daemon {
 			throw error;
 		}
 		// TODO add timeout to reload the filters
+	}
+
+	// update balances in json
+	async updateBalances() {
+		//console.log("--- updateBalances ---");
+		let _provider = null;
+			
+		try {
+			// TODO native tokens
+			for (let tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
+				const _token = this._tokensList[tokenIndex];
+				if (_token.activated !== true) continue;
+				if (_token.listeningAddress === undefined || _token === null || _token === "") {
+					continue; // not a valid address
+				}
+
+				// Refund
+				_provider = this._listeningNetworkProvider;
+				let signer = new ethers.Wallet(process.env[_token.privateKey4refund], _provider);
+				let nativeBalance = await _provider.getBalance(signer.address); // native balance for refund
+				this._tokensList[tokenIndex].listeningBalance = ethers.utils.formatEther(nativeBalance);
+
+				// payment
+				_provider = this._networkProvider[_token.toNetworkIndex];
+				signer = new ethers.Wallet(process.env[_token.toPrivateKey], _provider);
+				nativeBalance = await _provider.getBalance(signer.address); // native balance for payement
+				this._tokensList[tokenIndex].toNativeBalance = ethers.utils.formatEther(nativeBalance);
+
+				const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
+				const tokenBalance = await contract.balanceOf(signer.address); // token balance for payement
+				this._tokensList[tokenIndex].toTokenBalance = ethers.utils.formatEther(tokenBalance);
+			}
+		} catch(error) {
+			console.error('Error updateBalances: ', error);
+		}
 	}
 
 	// get error from listening provider
@@ -332,7 +369,7 @@ module.exports = class daemon {
 			else _from = ethers.utils.hexZeroPad("0x0" + _from, 20);
 		} catch (error) {
 			console.error('Error parseEvent, parse log error [' + error.code + ']: ', error);
-			//this.refundToken(indexToken, _from, amount, logTx); // error _from ????
+			//this.refundToken(indexToken, _from, BigNumber.from(initialAmount), logTx); // error _from ????
 			return;
 		}
 
@@ -349,14 +386,14 @@ module.exports = class daemon {
 					console.log("[NoRefund]Invalid amount, less than No Refund amount");
 					return;
 				}
-				this.refundToken(indexToken, _from, initialAmount, logTx);
+				this.refundToken(indexToken, _from, BigNumber.from(initialAmount), logTx);
 				return;
 			}
 
 			this.sendToken(_networkNum, indexToken, _from, amount, logTx);
 		} catch (error) {
 			console.error('Error parseEvent [' + error.code + ']: ', error);
-			this.refundToken(indexToken, _from, initialAmount, logTx);
+			this.refundToken(indexToken, _from, BigNumber.from(initialAmount), logTx);
 		}
 	}
 
@@ -367,7 +404,7 @@ module.exports = class daemon {
 	// amount: amount to send
 	// logTx: sender transaction Hash
 	async sendToken(networkNum, indexToken, from, amount, logTx) {
-		console.log("-- sendToken --");
+		//console.log("-- sendToken --");
 		//console.log("from: ", from);
 		//console.log("amount: ", amount);
 		//console.log("logTx: ", logTx);
@@ -381,11 +418,12 @@ module.exports = class daemon {
 			await this._networkProvider[networkNum].waitForTransaction(tx.hash, 1);
 
 			console.log("[sendToken]Transfert success tx: ", tx.hash);
+			this.updateBalances();
 		} catch (error) {
 			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
 			this.refundToken(indexToken, from, amount, logTx);
-			this.sendMessageToAdmin('sendToken', error, networkNum, indexToken, from, amount);
+			this.sendMessageToAdmin('sendToken', error, indexToken, from, amount);
 			console.error('Error (function) sendToken [' + error.code + ']: ', error);
 		}
 	}
@@ -396,24 +434,38 @@ module.exports = class daemon {
 	// amount: amount to send
 	// logTx: sender transaction Hash
 	async refundToken(indexToken, from, amount, logTx) {
-		console.log("-- refundToken --");
+		//console.log("-- refundToken --");
 		//console.log("indexToken: ", indexToken);
 		//console.log("from: ", from);
 		//console.log("amount: ", amount);
 		//console.log("logTx: ", logTx);
 
 		try {
-			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].privateKey4refund], this._listeningNetworkProvider);
+			const _provider = this._listeningNetworkProvider;
+			const signer = new ethers.Wallet(process.env[this._tokensList[indexToken].privateKey4refund], _provider);
 			const contract = new ethers.Contract(this._tokensList[indexToken].tokenContractAddress, transferABI, signer);
 
+			// Check balances
+			const nativeBalance = await _provider.getBalance(signer.address); // native token balance
+			const tokenBalance = await contract.balanceOf(signer.address); // token balance
+			if (ethers.utils.parseEther("1.0").gt(nativeBalance)) {
+				console.error('[Refund]Insufficient funds for intrinsic transaction cost');
+				return;
+			}
+			if (amount.gt(tokenBalance)) {
+				console.error('[Refund]Insufficient tokens funds for transaction');
+				return;
+			}
+
 			const tx = await contract.transfer(from, amount);
-			await this._listeningNetworkProvider.waitForTransaction(tx.hash, 1);
+			await _provider.waitForTransaction(tx.hash, 1);
 
 			console.log("[Refund]Transfert success tx: ", tx.hash);
+			this.updateBalances();
 		} catch (error) {
 			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
-			this.sendMessageToAdmin('refundToken', error, networkNum, indexToken, from, amount);
+			this.sendMessageToAdmin('refundToken', error, indexToken, from, amount);
 			console.error('Error (function) refundToken [' + error.code + ']: ', error);
 		}
 	}
@@ -437,21 +489,17 @@ module.exports = class daemon {
 		const nativeBalance = await _provider.getBalance(signer.address); // native token balance
 		const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
 		const tokenBalance = await contract.balanceOf(signer.address); // token balance
-		//console.log("nativeBalance: ", nativeBalance);
-		//console.log("nativeBalance typeof: ", ethers.utils.formatEther(nativeBalance));
-		//console.log("parseEther: ", ethers.utils.parseEther("1.0"));
-		//console.log("parseEther typeof: ", typeof ethers.utils.parseEther("1.0"));
 
 		if (ethers.utils.parseEther("1.0").gt(nativeBalance)) {
 			return [false, "Insufficient funds for intrinsic transaction cost"];
 		}
 		if (nativeToken) {
 			if (amount.gt(nativeBalance)) {
-				return [false, "Insufficient native token funds for transaction"];
+				return [false, "Insufficient native tokens funds for transaction"];
 			}
 		} else {
 			if (amount.gt(tokenBalance)) {
-				return [false, "Insufficient token funds for transaction"];
+				return [false, "Insufficient tokens funds for transaction"];
 			}
 		}
 
@@ -564,13 +612,15 @@ module.exports = class daemon {
 	//TODO async
 	initMailer() {
 		//console.log("-- Init Mail --");
-		if (process.env.SEND_MAIL_TO_ADMIN !== true) return;
+		if (process.env.SEND_MAIL_TO_ADMIN !== "true") return;
+		if (process.env.ADMIN_ADDRESS === undefined || process.env.ADMIN_ADDRESS === null || process.env.ADMIN_ADDRESS === "") return;
+		if (process.env.FROM_ADDRESS === undefined || process.env.FROM_ADDRESS === null || process.env.FROM_ADDRESS === "") return;
 
 		try {
 			this._mailTransporter = nodemailer.createTransport({
 				host: process.env.SMTP_ADDRESS,
-				port: process.env.SMTP_PORT,
-				secure: process.env.SECURE
+				port: process.env.SMTP_PORT * 1,
+				secure: (process.env.SECURE.toLowerCase() === "true")
 			});
 		} catch (error) {
 			console.error('ERROR initMailer [' + error.code + ']: ', error);
@@ -578,35 +628,35 @@ module.exports = class daemon {
 	}
 
 	// send mail to admin
-	async sendMessageToAdmin(functionName, error, networkNum, indexToken, from, amount) {
+	async sendMessageToAdmin(functionName, error, indexToken, from, amount) {
 		//console.log("-- sendMessageToAdmin --");
-		console.error('Error in ' + functionName + ' [' + error.code + ']: ', error);
-		if (process.env.SEND_MAIL_TO_ADMIN !== true) return;
+		console.error('Error function: ' + functionName);
+		if(error !== undefined && error !== null) console.error((error.code !== undefined && error.code !== null? 'Error code: ' + error.code:""));
+		if(error !== undefined && error !== null) console.error('Error Message: ', error);
 		if (this._mailTransporter === null) return;
-		if (process.env.ADMIN_ADDRESS === undefined || process.env.ADMIN_ADDRESS === null || process.env.ADMIN_ADDRESS === "") return;
-		if (process.env.FROM_ADDRESS === undefined || process.env.FROM_ADDRESS === null || process.env.FROM_ADDRESS === "") return;
+		const networkNum = this._tokensList[indexToken].toNetworkIndex
 
 		try {
-			let message = '';
-			if(error !== null) {
+			let message = 'Deamon Bridge Error<br>\r\n';
+			message += '\r\nNetwork: [' + networkNum + '] ' + this._tokensList[indexToken].toNetwork +
+				'<br>\r\nToken: [' + indexToken + '] ' + this._tokensList[indexToken].toToken +
+				'<br>\r\nUser: ' + this._tokensList[indexToken].toPrivateKey +
+				'<br>\r\nFrom: ' + from +
+				'<br>\r\nAmount: ' + amount;
+
+			if(error !== undefined && error !== null) {
+				message += '<br><br>\r\nError';
 				if (functionName !== null && functionName !== "") {
-					message += 'Error in ' + functionName;
+					message += ' in ' + functionName;
 				}
-				message += ' [' + error.code + ']';
-				if(error.message !== undefined && error.message !== null && error.message !== "") {
-					message += ", " + error.message;
+				message += (error.code !== undefined && error.code !== null?' [' + error.code + ']':'');
+				if (error.message !== undefined && error.message !== null && error.message !== "") {
+					message += "<br>\r\nError message: " + error.message;
 				}
-				message += ', ';
+				message += '<br>\r\n';
 			}
-
-			message += 'network: [' + networkNum + ']' + this._tokensList[indexToken].toNetwork +
-				', tokenIndex: ' + indexToken +
-				', token: ' + this._tokensList[indexToken].toToken +
-				', user: ' + this._tokensList[indexToken].toPrivateKey +
-				', from: ' + from +
-				', amount: ' + amount;
-
-			console.log("Message: " + message);
+	
+			console.log("Message:" + message);
 
 			// send mail
 			const mailOptions = {

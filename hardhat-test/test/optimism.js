@@ -89,13 +89,15 @@ describe("Test Sepolia to Optimism", function () {
 			const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount);
 			//const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount, { gasPrice: gasPrice, gasLimit: 40000 }); // 200000000000
 			console.log("transactionTx: ", transactionTx.hash);
+			console.log("Waiting transaction");
 			await transactionTx.wait(1); // error on wait(1) => change rpc_url
 
 			let new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
+			// else refund !!!
 			expect(new_balance_of_emit_token, "new_balance_of_emit_token unchanged").to.lt(initial_balance_of_emit_token);
 
 			// wait for exchange or refund
-			process.stdout.write("Waiting ");
+			process.stdout.write("Waiting transfert ");
 			let new_balance_of_receive_token = 0;
 			let i = 0;
 			while (true) {
@@ -129,7 +131,7 @@ describe("Test Sepolia to Optimism", function () {
 			const contractReceive = new ethers.Contract(contractReceiveTokenAddress, abi, providerReceive);
 			const initial_balance_of_receiver = await contractReceive.balanceOf(signerReceive);
 
-			const amount = ethers.utils.parseEther("20.0"); // testToken.max 10.0 !!
+			const amount = ethers.utils.parseEther("12.0"); // testToken.max 10.0 !!
 			console.log("amount: ", ethers.utils.formatEther(amount));
 
 			// check token balances
@@ -143,13 +145,14 @@ describe("Test Sepolia to Optimism", function () {
 			const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount);
 			//const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount, { gasPrice: gasPrice, gasLimit: 40000 }); // 200000000000
 			console.log("transactionTx: ", transactionTx.hash);
+			console.log("Waiting transaction");
 			await transactionTx.wait(1); // error on wait(1) => change rpc_url
 
 			let new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
 			expect(new_balance_of_emit_token, "new_balance_of_emit_token unchanged").to.lt(initial_balance_of_emit_token);
 
 			// wait for exchange or refund
-			process.stdout.write("Waiting ");
+			process.stdout.write("Waiting transfert ");
 			let new_balance_of_receive_token = 0;
 			let i = 0;
 			while (true) {
@@ -197,13 +200,14 @@ describe("Test Sepolia to Optimism", function () {
 			const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount);
 			//const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount, { gasPrice: gasPrice, gasLimit: 40000 }); // 200000000000
 			console.log("transactionTx: ", transactionTx.hash);
+			console.log("Waiting transaction");
 			await transactionTx.wait(1); // error on wait(1) => change rpc_url
 
 			let new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
 			expect(new_balance_of_emit_token, "new_balance_of_emit_token unchanged").to.lt(initial_balance_of_emit_token);
 
 			// wait for exchange or refund
-			process.stdout.write("Waiting ");
+			process.stdout.write("Waiting transfert ");
 			let new_balance_of_receive_token = 0;
 			let i = 0;
 			while (true) {
@@ -251,13 +255,14 @@ describe("Test Sepolia to Optimism", function () {
 			const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount);
 			//const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, amount, { gasPrice: gasPrice, gasLimit: 40000 }); // 200000000000
 			console.log("transactionTx: ", transactionTx.hash);
+			console.log("Waiting transaction");
 			await transactionTx.wait(1); // error on wait(1) => change rpc_url
 
 			let new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
 			expect(new_balance_of_emit_token, "new_balance_of_emit_token unchanged").to.lt(initial_balance_of_emit_token);
 
 			// wait for exchange or refund
-			process.stdout.write("Waiting ");
+			process.stdout.write("Waiting transfert ");
 			let new_balance_of_receive_token = 0;
 			let i = 0;
 			while (true) {
