@@ -560,17 +560,22 @@ module.exports = class daemon {
 	//***********************
 
 	// make json for html request
-	makeJson() {
+	// httpServerPort: http port
+	// return: json string
+	makeJson(httpServerPort) {
 		//console.log("--- makeJson ---");
-		let daemonObject = {};
+		let json4http = {};
 		let resultTokensList = [];
 
 		if (this._tokensList === null) return "Error: tokensList error";
 
 		try {
-			daemonObject.listeningNetwork = {};
-			daemonObject.listeningNetwork["networkName"] = networkList.listeningNetwork.networkName;
-			daemonObject.networks = networkList.networks;
+			json4http.general = {};
+			json4http.general = networkList.general;
+			json4http.general["http_port"] = httpServerPort;
+			json4http.listeningNetwork = {};
+			json4http.listeningNetwork["networkName"] = networkList.listeningNetwork.networkName;
+			json4http.networks = networkList.networks;
 			for (let i = 0; i < this._tokensList.length; i++) {
 				if (this._tokensList[i].activated !== true) continue;
 				const count = resultTokensList.push(this._tokensList[i]);
@@ -578,11 +583,11 @@ module.exports = class daemon {
 				delete resultTokensList[count - 1].toPrivateKey;
 				delete resultTokensList[count - 1].toNetworkIndex;
 			}
-			daemonObject.tokensList = resultTokensList;
-			return JSON.stringify(daemonObject);
+			json4http.tokensList = resultTokensList;
+			return JSON.stringify(json4http);
 		} catch (error) {
-			console.error('Error htmlJson: ', error);
-			return "Error: create tokens list";
+			console.error('Error makeJson: ', error);
+			return "Error create json file";
 		}
 	}
 

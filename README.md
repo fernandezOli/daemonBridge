@@ -35,9 +35,26 @@ npm install
 
 1. Create `.env` file with required keys:
 ```env
+# if admin want mail on error else set to false
+SEND_MAIL_TO_ADMIN=true
+SMTP_ADDRESS="your_smtp_address (ex: smtp.myprovider.com)"
+SMTP_PORT=25 (normaly 25)
+SECURE=false (normaly false)
+FROM_ADDRESS="daemonbridge@daemon.com" (any address you want, but some provider need a valid account, use your mail address if needed)
+ADMIN_ADDRESS="your_mail_address_to_receive_mail"
+
+# URL API KEYS
 ETHERSCAN_API_KEY="your_etherscan_api_key"
 INFURA_API_KEY="your_infura_api_key"
+
+# payments accounts natif
+Sepolia_PRIVATE_KEY="your_sepolia_private_key"
+
+# payments accounts tokens
 OPSepolia_PRIVATE_KEY="your_op_sepolia_private_key"
+
+# refund accounts tokens
+OPSepolia_LINK_REFUND="your_sepolia_listener_private_key"
 ```
 
 2. Configure networks and tokens in `config/config.json`
@@ -51,7 +68,7 @@ npm start
 ```
 Launches server on port 3000
 
-### Demo Mode (Multiple Servers)
+### Demo Mode (4 daemons on one server)
 ```bash
 npm run daemon1  # Port 3000
 npm run daemon2  # Port 3001
@@ -108,6 +125,7 @@ npx hardhat test
 
 1. Server won't start:
    - Verify environment variables
+   - Verify configuration
    - Check network RPC endpoints
    - Ensure sufficient gas balance
 

@@ -22,26 +22,26 @@ console.log('');
 console.log("Launching daemon at:", new Date().toString());
 console.log('');
 
-let serverPort = 3000; // default port for npm start
+let httpServerPort = 3000; // default port for npm start
 const params = process.argv.slice(2);
 if(params[0] !== undefined) {
 	const paramPort = params[0].trim();
-	if(paramPort !== undefined && paramPort !== null && paramPort !== "") serverPort = paramPort;
+	if(paramPort !== undefined && paramPort !== null && paramPort !== "") httpServerPort = paramPort;
 }
 
 http.createServer(async function (req, res) {
-	createServer(req, res);
-}).listen(serverPort);
+	httpServer(req, res);
+}).listen(httpServerPort);
 
 console.log("┌───────────────────────────────────┐");
 console.log("│                                   │".replaceAll(' ','\u2002'));
 console.log("│   Daemon Bridge - v 1.0           │".replaceAll(' ','\u2002'));
 console.log("│                                   │".replaceAll(' ','\u2002'));
-console.log("│   Started on port: "+serverPort+"           │".replaceAll(' ','\u2002'));
+console.log("│   Started on port: "+httpServerPort+"           │".replaceAll(' ','\u2002'));
 console.log("│                                   │".replaceAll(' ','\u2002'));
 console.log("└───────────────────────────────────┘");
 
-async function createServer(req, res) {
+async function httpServer(req, res) {
 
 	res.setHeader("Access-Control-Allow-Origin", "*"); //"*"
 	res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
@@ -55,7 +55,7 @@ async function createServer(req, res) {
 		else {
 			if (req.method === 'GET') {
 				let _body = "ok";
-				if(req.url.match("/json")) _body = daemon.makeJson();
+				if(req.url.match("/json")) _body = daemon.makeJson(httpServerPort);
 				if(req.url.match("/status")) _body = daemon.getStatus();
 				res.writeHead(200, { 'Content-Length': Buffer.byteLength(_body), 'Content-Type': 'text/plain' });
 				res.end(_body);
