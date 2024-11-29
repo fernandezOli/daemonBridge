@@ -19,6 +19,7 @@ let status = Status.NONE;
 module.exports = class daemon {
 	_listeningNetworkProvider = null;
 	_networkProvider = [];
+	_nativeListeners = [];
 	_tokensList = null;
 	_mailTransporter = null;
 
@@ -47,24 +48,24 @@ module.exports = class daemon {
 		let signer = null;
 
 		// native private keys
-		for (let i = 0; i < networkList.listeningNetwork.nativeToken.length; i++) {
-			_token = networkList.listeningNetwork.nativeToken[i];
+		for (let i = 0; i < networkList.listeningNetwork.nativeTokens.length; i++) {
+			_token = networkList.listeningNetwork.nativeTokens[i];
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
-				throw new Error('Invalid (null) native private key for toPrivateKey in config');
+				throw 'Invalid (null) native private key for toPrivateKey in config';
 			}
 			_privateKey = _token.toPrivateKey;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined native private key for toPrivateKey in .env');
+				throw 'Undefined native private key for toPrivateKey in .env';
 			}
 			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
 			_token.toPublicKey = signer.address;
 
 			if (_token.privateKey4refund === undefined || _token.privateKey4refund === null || _token.privateKey4refund === "") {
-				throw new Error('Invalid native private key for privateKey4refund in config');
+				throw 'Invalid native private key for privateKey4refund in config';
 			}
 			_privateKey = _token.privateKey4refund;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined native private key for privateKey4refund in .env');
+				throw 'Undefined native private key for privateKey4refund in .env';
 			}
 			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
 			_token.publicKey4refund = signer.address;
@@ -73,21 +74,21 @@ module.exports = class daemon {
 		for (let i = 0; i < networkList.listeningNetwork.tokens.length; i++) {
 			_token = networkList.listeningNetwork.tokens[i];
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
-				throw new Error('Invalid token private key for toPrivateKey in config');
+				throw 'Invalid token private key for toPrivateKey in config';
 			}
 			_privateKey = _token.toPrivateKey;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined token private key for toPrivateKey .env');
+				throw 'Undefined token private key for toPrivateKey .env';
 			}
 			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
 			_token.toPublicKey = signer.address;
 
 			if (_token.privateKey4refund === undefined || _token.privateKey4refund === null || _token.privateKey4refund === "") {
-				throw new Error('Invalid token private key for privateKey4refund in config');
+				throw 'Invalid token private key for privateKey4refund in config';
 			}
 			_privateKey = _token.privateKey4refund;
 			if (process.env[_privateKey] === undefined || process.env[_privateKey] === null || process.env[_privateKey] === "") {
-				throw new Error('Undefined token private key for privateKey4refund .env');
+				throw 'Undefined token private key for privateKey4refund .env';
 			}
 			signer = new ethers.Wallet(process.env[_privateKey], this._listeningNetworkProvider);
 			_token.publicKey4refund = signer.address;
@@ -103,7 +104,7 @@ module.exports = class daemon {
 			let validProvider;
 			(async () => validProvider = await this.getFirstValidProvider(networkList.listeningNetwork.RPC_URLs, 0).then().catch())();
 			while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-			if (validProvider === null) throw new Error('Invalid RPC_URL for listening network');
+			if (validProvider === null) throw 'Invalid RPC_URL for listening network';
 			//console.log("[initProviders]listening Network validProvider: ", validProvider);
 			this._listeningNetworkProvider = validProvider;
 		} catch (error) {
@@ -118,7 +119,7 @@ module.exports = class daemon {
 				let validProvider;
 				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i + 1).then().catch())();
 				while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-				if (validProvider === null) throw new Error('Invalid RPC_URL for network: ' + networkList.networks[i].networkName);
+				if (validProvider === null) throw 'Invalid RPC_URL for network: ' + networkList.networks[i].networkName;
 				this._networkProvider[i] = validProvider;
 			}
 		} catch (error) {
@@ -170,29 +171,43 @@ module.exports = class daemon {
 	startListening() {
 		//console.log("-- start Listening --");
 		let tokenIndex = null;
-		if (this._listeningNetworkProvider === null) {
-			throw new Error('ERROR start listening, no provider');
-		}
+		let nativeCounter = 0;
+		let tokenCounter = 0;
 
+		if (this._listeningNetworkProvider === null) {
+			throw 'Error start listening, no provider !';
+		}
 		this._listeningNetworkProvider.removeAllListeners();
-		// Native token
+		// Native tokens
 		try {
 			if (networkList.listeningNetwork.activeNativeToken) {
-				// Scan all blocks
-				this._listeningNetworkProvider.on("block", (blockNumber) => { this.parseBlock(blockNumber, 0) });
-				console.log("Start listening for native token");
+				// check if 1 or more listening
+				const nativeTokensList = networkList.listeningNetwork.nativeTokens;
+				for (let nativeTokenIndex = 0; nativeTokenIndex < nativeTokensList.length; nativeTokenIndex++) {
+					if (nativeTokensList[nativeTokenIndex].activated !== true) continue;
+					const nativeToken = nativeTokensList[nativeTokenIndex];
+					nativeCounter++;
+					nativeToken.toNetworkIndex = this.findNetworkByName(nativeToken.toNetwork);
+					this._nativeListeners[nativeTokensList[nativeTokenIndex].listeningAddress] = nativeTokenIndex;
+					console.log("Start listening for native to native on " + nativeToken.listeningAddress + " to " + nativeToken.toNetwork);
+				}
+				if (nativeCounter !== 0) {
+					// Scan all blocks
+					this._listeningNetworkProvider.on("block", (blockNumber) => { this.parseBlock(blockNumber, 0) });
+				}
+				else console.log("- No listening for native token -");
 			}
+			else console.log("- No listening for native token -");
 			this._listeningNetworkProvider.on("error", (error) => { this.listeningProviderError(error)} );
-			// TODO: make address list of listeners
 		} catch (error) {
-			console.error('ERROR start listening for native token');
+			console.error('error start listening for native token');
 			throw error;
 		}
 
 		// tokens
 		try {
 			this._tokensList = networkList.listeningNetwork.tokens;
-			for (let tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
+			for (tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
 				if (initialConfig.listeningNetwork.tokens[tokenIndex].activated !== true) {
 					this._tokensList[tokenIndex].activated = false;
 					continue;
@@ -213,14 +228,19 @@ module.exports = class daemon {
 
 				const _index = tokenIndex;
 				this._listeningNetworkProvider.on(filter, (log) => { this.parseEvent(log, _index); });
+				tokenCounter++;
 				console.log("Start listening for token " + this._tokensList[tokenIndex].tokenName + " on " + this._tokensList[tokenIndex].listeningAddress + " to " + this._tokensList[tokenIndex].toNetwork + "/" + this._tokensList[tokenIndex].toToken);
 			}
+			if(tokenCounter === 0) console.log("- No listening for tokens -");
 		} catch (error) {
 			if (tokenIndex !== null && this._tokensList !== null) console.error("ERROR start listening for token " + this._tokensList[tokenIndex].tokenName);
-			console.error('ERROR start listening [' + error.code + ']: ', error);
+			console.error('error start listening for token [' + error.code + ']: ', error);
 			throw error;
 		}
-		// TODO add timeout to reload the filters
+		if((tokenCounter + nativeCounter) === 0) {
+			console.log("- No listener (abort) -");
+			throw "No listener (abort)";
+		}
 	}
 
 	// update balances in json
@@ -289,55 +309,203 @@ module.exports = class daemon {
 
 	// Parse Block for native token payment
 	// blockNumber: block number in blockchain
-	// networkNum: network index in network list
-	async parseBlock(blockNumber, networkNum) {
-		console.log("parseBlock[networkNum]: ", networkNum);
-		console.log("parseBlock[blockNumber]: ", blockNumber);
-		/*
-			//const result = await this._networkProvider[networkNum].getBlockWithTransactions(blockNumber);
-			const block = await this._listeningNetworkProvider.getBlock(blockNumber);
-			console.log("Transactions:", block.transactions);
-		
-			for (let i = 0; i < block.transactions.length; i++) {
-				console.log('transaction no: ', i);
-				let result = await this._listeningNetworkProvider.getTransaction(block.transactions[i]);
-				if (result.to === undefined || result.to === null) {
-					console.log('transaction !to: ', result);
-					continue;
-				}
-				console.log('transaction [to]: ', result.to);
-				//if (result.transactions[i].to === undefined || result.transactions[i].to === null) continue;
-				//if (result.transactions[i].to !== networkList.networks[i].listeningAddress) continue;
-			}
-		
-			// check data (amount, fees, ...)
-			// calc amount
-			// send transaction to tr.from
-			//sendNativeToken(networkNum, to, amount)
-		*/
-	}
+	// fromNetworkNum: network param
+	async parseBlock(blockNumber, fromNetworkNum) {
+		//console.log("parseBlock[fromNetworkNum]: ", fromNetworkNum);
+		//console.log("parseBlock[blockNumber]: ", blockNumber);
 
-	/*
-	Transactions: [
-	'0x8a64a71ef3f8b91644bfe247be709472acadfffdd25b1be31ba796f1ac838657',
-	'0x6b55ddcae03ecf79ec670efc3e41b10da5cd0fc46f47a2d59fdc190a6cf3a520',
-	'0xe9489b5b9290f684dc05f05a5687fc79f6d8e150bf412384fb3749da52bcd0cc',
-	*/
+		let nativeListenerIndex = null;
 
-	/*
-	// Send token to the applicant
-	async function sendNativeToken(networkNum, to, amount) {
 		try {
-			//const provider = new ethers.providers.JsonRpcProvider('QUICKNODE_HTTPS_URL');
-			//this._networkProvider[networkNum]
-			const signer = new ethers.Wallet(process.env["OPSepolia_PRIVATE_KEY"], this._networkProvider[networkNum]);
-			const tx = await signer.sendTransaction({ to: to, value: amount });
-			console.log(tx);
+			const result = await this._listeningNetworkProvider.getBlockWithTransactions(blockNumber);
+			//console.log("Transactions count: " + result.transactions.length);
+
+			for (let i = 0; i < result.transactions.length; i++) {
+				const resultTx = result.transactions[i];
+				if (resultTx.from === undefined || resultTx.from === null) continue;
+				if (resultTx.to === undefined || resultTx.to === null) continue;
+				if (parseInt(resultTx.value._hex, 16) === 0) continue; // value = 0
+
+				//console.log('transaction: ', resultTx);
+				//console.log('transaction [from]: ', resultTx.from);
+
+				// check if listeningAddress [to] is known
+				if (this._nativeListeners[resultTx.to] === undefined) continue;
+				//console.log('transaction [_nativeListeners]: ', this._nativeListeners[resultTx.to]);
+
+				nativeListenerIndex = this._nativeListeners[resultTx.to];
+				//console.log("[parseBlock] find transaction for: ", resultTx.to);
+				this.parseTransaction(fromNetworkNum, nativeListenerIndex, resultTx.from, resultTx.to, resultTx.value, resultTx.hash);
+			}
 		} catch (error) {
-			console.error('Error sendToken [' + error.code + ']: ', error);
+			console.error('Error parseBlock [' + error.code + ']: ', error);
+			if ((resultTx.from !== undefined && resultTx.from !== null) &&
+			 (resultTx.value !== undefined && resultTx.value !== null) &&
+			 (resultTx.hash !== undefined && resultTx.hash !== null))
+				this.refundNativeToken(fromNetworkNum, nativeListenerIndex, resultTx.from, resultTx.value, resultTx.hash);
+			return;
 		}
 	}
-	*/
+
+	async parseTransaction(fromNetworkNum, nativeListenerIndex, from, to, initialAmount, txHash) {
+		console.log("-- parseTransaction --");
+		console.log("fromNetworkNum: ", fromNetworkNum);
+		//console.log("nativeListenerIndex: ", nativeListenerIndex);
+		//console.log("from: ", from);
+		//console.log("to: ", to);
+		//console.log("initialAmount: ", initialAmount);
+		//console.log("txHash: ", txHash);
+
+		//console.log("[parseTransaction] find transaction to: ", to);
+		const nativeTokensList = networkList.listeningNetwork.nativeTokens;
+		const networkNum = this.findNetworkByName(nativeTokensList[nativeListenerIndex].toNetwork);
+
+		try {
+			// calc amount = amount - (service_fees + destination_fees)
+			let amount = initialAmount;
+			amount = amount.sub(await this.calcNativeFees(networkNum, nativeListenerIndex, initialAmount));
+			//console.log("amount: ", ethers.utils.formatEther(amount));
+
+			// verify data integrity
+			const [check, checkMessage] = await this.checkNativeData(networkNum, nativeListenerIndex, amount);
+			if (check === false) {
+				console.log("Error DataCheck Message: ", checkMessage);
+				if (ethers.utils.parseEther(_token.minNoRefund).gt(initialAmount)) {
+					console.log("[NoRefund]Invalid amount, less than No Refund amount");
+					return;
+				}
+				this.refundNativeToken(networkNum, nativeListenerIndex, from, initialAmount, txHash);
+				return;
+			}
+
+			this.sendNativeToken(networkNum, nativeListenerIndex, from, amount, initialAmount, txHash)
+		} catch (error) {
+			console.error('Error parseTransaction [' + error.code + ']: ', error);
+			this.refundNativeToken(networkNum, nativeListenerIndex, from, initialAmount, txHash);
+		}
+	}
+
+	// Send token in BC2 to the sender
+	// networkNum: network index in network list
+	// indexToken: token index
+	// from: address sender
+	// amount: amount to send
+	// initialAmount: amount to send on refund
+	// txHash: sender transaction Hash
+	async sendNativeToken(networkNum, indexToken, from, amount, initialAmount, txHash) {
+		console.log("-- sendNativeToken --");
+		//console.log("networkNum: ", networkNum);
+		//console.log("indexToken: ", indexToken);
+		//console.log("from: ", from);
+		//console.log("amount: ", amount);
+		console.log("txHash: ", txHash);
+
+		const nativeTokensList = networkList.listeningNetwork.nativeTokens;
+		const _provider = this._networkProvider[networkNum];
+
+		try {
+			const signer = new ethers.Wallet(process.env[nativeTokensList[indexToken].toPrivateKey], _provider);
+
+			const tx = await signer.sendTransaction({ to: from, value: amount });
+			await _provider.waitForTransaction(tx.hash, 1);
+
+			console.log("[sendNativeToken]Transfert success tx: ", tx.hash);
+			this.updateBalances();
+		} catch (error) {
+			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
+			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
+			this.refundNativeToken(networkNum, nativeListenerIndex, from, initialAmount, txHash);
+			//this.refundToken(indexToken, from, amount, BigNumber.from(initialAmount), txHash);
+			//this.sendMessageToAdmin('sendNativeToken', error, indexToken, from, amount);
+			console.error('Error (function) sendNativeToken [' + error.code + ']: ', error);
+		}
+	}
+
+	async refundNativeToken(networkNum, indexToken, from, amount, txHash) {
+		console.log("-- refundNativeToken --");
+		console.log("networkNum: ", networkNum);
+		console.log("indexToken: ", indexToken);
+		console.log("from: ", from);
+		console.log("amount: ", amount);
+		console.log("txHash: ", txHash);
+	}
+
+	// Check balance, min, max
+	// networkNum: num of the network
+	// indexToken: token index
+	// amount: amount to be send in wei (BigNumber)
+	// isNativeToken: true for native token false for token
+	// return: true and empty message or false and error message on error
+	async checkNativeData(networkNum, indexToken, amount) {
+		//console.log("-- checkNativeData --");
+		//console.log("amount: ", amount);
+		//console.log("amount typeof: ", typeof amount);
+
+		const _provider = this._networkProvider[networkNum];
+		const _token = networkList.listeningNetwork.nativeTokens[indexToken];
+		const signer = new ethers.Wallet(process.env[_token.toPrivateKey], _provider);
+
+		// Check balances
+		const nativeBalance = await _provider.getBalance(signer.address); // native token balance
+
+		if (amount.gt(nativeBalance)) {
+			return [false, "Insufficient native tokens funds for transaction"];
+		}
+
+		// Check min, max
+		if (ethers.utils.parseEther(_token.min).gt(amount)) {
+			return [false, "Invalid amount, less than minimum amount"];
+		}
+		if (ethers.utils.parseEther(_token.max).lt(amount)) {
+			return [false, "Invalid amount, greater than maximum amount"];
+		}
+		return [true, ""];
+	}
+
+	// calc fees for amount to be sent amount = amount - (service_fees + destination_fees)
+	// networkNum: num of the destination network
+	// indexToken: token index
+	// amount: amount (BigNumber)
+	// return: fees for this amount (BigNumber)
+	async calcNativeFees(networkNum, nativeListenerIndex, amount) {
+		console.log("-- calcNativeFees --");
+		//console.log("networkNum: ", networkNum);
+		//console.log("nativeListenerIndex: ", nativeListenerIndex);
+		//console.log("amount: ", amount);
+		//console.log("amount: ", ethers.utils.formatEther(amount));
+
+		const _provider = this._networkProvider[networkNum];
+		const _token = networkList.listeningNetwork.nativeTokens[nativeListenerIndex];
+
+		let relayerFee = ethers.utils.parseEther(_token.fixedFees);
+		//console.log("relayerFee formatEther: ", ethers.utils.formatEther(relayerFee));
+
+		let relayerPcent = amount * _token.feesPcent;
+		//console.log("relayerPcent: ", relayerPcent);
+
+		let pcent = BigNumber.from(relayerPcent.toString());
+		//console.log("pcent formatEther: ", ethers.utils.formatEther(pcent));
+
+		relayerFee = relayerFee.add(pcent);
+		//console.log("total relayerFee formatEther: ", ethers.utils.formatEther(relayerFee));
+
+		let destinationTxFee = null;
+		if (_token.calcGasCostOnBC2) {
+			const getGasPrice = await _provider.getFeeData(); //  in BC2 (dest) coin, in wei
+			//console.log("gasPrice: ", getGasPrice.gasPrice);
+			destinationTxFee = getGasPrice.gasPrice * 21000; // native transfer = 21000
+			//console.log("destinationTxFee: ", destinationTxFee);
+			destinationTxFee = destinationTxFee * 1 / _token.conversionRateBC1toBC2; // conversion BC2 (dest) to BC1 (src)
+			destinationTxFee = BigNumber.from(destinationTxFee.toString());
+			//console.log("destinationTxFee: ", ethers.utils.formatEther(destinationTxFee));
+		}
+		else destinationTxFee = BigNumber.from(0);
+
+		let totalFees = relayerFee.add(destinationTxFee);
+		console.log("total Fees: ", ethers.utils.formatEther(totalFees));
+		return totalFees;
+	}
+
 
 	//****************
 	//**** Tokens ****
@@ -390,7 +558,7 @@ module.exports = class daemon {
 				return;
 			}
 
-			this.sendToken(_networkNum, indexToken, _from, amount, logTx);
+			this.sendToken(_networkNum, indexToken, _from, amount, BigNumber.from(initialAmount), logTx);
 		} catch (error) {
 			console.error('Error parseEvent [' + error.code + ']: ', error);
 			this.refundToken(indexToken, _from, BigNumber.from(initialAmount), logTx);
@@ -403,7 +571,7 @@ module.exports = class daemon {
 	// from: address sender
 	// amount: amount to send
 	// logTx: sender transaction Hash
-	async sendToken(networkNum, indexToken, from, amount, logTx) {
+	async sendToken(networkNum, indexToken, from, amount, initialAmount, logTx) {
 		//console.log("-- sendToken --");
 		//console.log("from: ", from);
 		//console.log("amount: ", amount);
@@ -422,7 +590,7 @@ module.exports = class daemon {
 		} catch (error) {
 			//if (error.code === "INSUFFICIENT_FUNDS") => insufficient funds on native token on BC <networkNum>
 			//error.shortMessage: 'insufficient funds for intrinsic transaction cost'
-			this.refundToken(indexToken, from, amount, logTx);
+			this.refundToken(indexToken, from, initialAmount, logTx);
 			this.sendMessageToAdmin('sendToken', error, indexToken, from, amount);
 			console.error('Error (function) sendToken [' + error.code + ']: ', error);
 		}
@@ -470,13 +638,13 @@ module.exports = class daemon {
 		}
 	}
 
-	// Check balance, min, max, fees
+	// Check balance, min, max
 	// networkNum: num of the network
 	// indexToken: token index
 	// amount: amount to be send in wei (BigNumber)
-	// nativeToken: true for native token false for token
+	// isNativeToken: true for native token false for token
 	// return: true and empty message or false and error message on error
-	async checkData(networkNum, indexToken, amount, nativeToken) {
+	async checkData(networkNum, indexToken, amount, isNativeToken) {
 		//console.log("-- checkData --");
 		//console.log("amount: ", amount);
 		//console.log("amount typeof: ", typeof amount);
@@ -490,10 +658,10 @@ module.exports = class daemon {
 		const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
 		const tokenBalance = await contract.balanceOf(signer.address); // token balance
 
-		if (ethers.utils.parseEther("1.0").gt(nativeBalance)) {
-			return [false, "Insufficient funds for intrinsic transaction cost"];
+		if (ethers.utils.parseEther("0.01").gt(nativeBalance)) {
+			return [false, "Insufficient native funds for intrinsic transaction cost"];
 		}
-		if (nativeToken) {
+		if (isNativeToken) {
 			if (amount.gt(nativeBalance)) {
 				return [false, "Insufficient native tokens funds for transaction"];
 			}
@@ -543,7 +711,7 @@ module.exports = class daemon {
 		const getGasPrice = await _provider.getFeeData(); //  in BC2 (dest) coin, in wei
 		//console.log("gasPrice: ", getGasPrice.gasPrice);
 
-		let destinationTxFee = getGasPrice.gasPrice * 21000;
+		let destinationTxFee = getGasPrice.gasPrice * 35000;  // token transfer = 34,368
 		//console.log("destinationTxFee: ", destinationTxFee);
 		destinationTxFee = destinationTxFee * 1/_token.conversionRateBC1toBC2; // conversion BC2 (dest) to BC1 (src)
 		destinationTxFee = destinationTxFee * _token.conversionRateBC1toTokenBC1; // convert to token

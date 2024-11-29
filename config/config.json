@@ -4,10 +4,10 @@
 		"version": "1.0"
 	},
 	"listeningNetwork": {
-		"activeNativeToken": false,
+		"activeNativeToken": true,
 		"networkName": "sepolia",
 		"networkLongName": "Sepolia (testnet)",
-		"symbol": "SETH",
+		"symbol": "ETH",
 		"testnet": true,
 		"RPC_URLs": [
 			{
@@ -36,11 +36,18 @@
 				"apikey": "INFURA_API_KEY"
 			}
 		],
-		"nativeToken": [
+		"nativeTokens": [
 			{
-				"activated": false,
+				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
-				"privateKey4refund": "Sepolia_PRIVATE_KEY",
+				"privateKey4refund": "OPSepolia_LINK_REFUND",
+				"minNoRefund": "0.0001",
+				"min": "0.0005",
+				"max": "3.0",
+				"fixedFees": "0.0001",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"calcGasCostOnBC2": false,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"toNetwork": "Optimism Sepolia"
 			}
@@ -77,7 +84,7 @@
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
-				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
+				"toPrivateKey": "ARSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Arbitrum Sepolia",
 				"toTokenContractAddress": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
@@ -85,7 +92,7 @@
 				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
-				"activated": true,
+				"activated": false,
 				"listeningAddress": "0xF3842962562138C466649B19dEfc3C305af6BA64",
 				"privateKey4refund": "BASepolia_LINK_REFUND",
 				"tokenName": "LINK",
@@ -96,7 +103,7 @@
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
-				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
+				"toPrivateKey": "BASepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Base Sepolia",
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",

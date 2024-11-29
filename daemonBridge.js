@@ -8,13 +8,13 @@ let daemon = null;
 try {
 	daemon = new daemonBridge();
 } catch(error) {
-	console.error('ERROR lauching daemon');
-	if(error !== undefined) console.error('ERROR: ', error);
+	console.error('❌ ERROR lauching daemon');
+	if(error !== undefined) console.error(error);
 	exit();
 }
 
 if(daemon === null) {
-	console.error("ERROR lauching daemon (unknown error)");
+	console.error("❌ ERROR lauching daemon (unknown error)");
 	exit();
 }
 

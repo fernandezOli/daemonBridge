@@ -11,5 +11,3 @@ module.exports = {
       },
 	}
 };
-
-//        accounts: [GOERLI_PRIVATE_KEY],
