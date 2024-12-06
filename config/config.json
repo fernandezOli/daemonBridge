@@ -9,6 +9,7 @@
 		"networkLongName": "Sepolia (testnet)",
 		"symbol": "ETH",
 		"testnet": true,
+		"chainId": 11155111,
 		"RPC_URLs": [
 			{
 				"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
@@ -41,15 +42,17 @@
 				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
+				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
 				"min": "0.0005",
-				"max": "3.0",
+				"max": "2.0",
 				"fixedFees": "0.0001",
 				"feesPcent": 0.01,
-				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toBC2": 0.5,
 				"calcGasCostOnBC2": false,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
-				"toNetwork": "Optimism Sepolia"
+				"toNetwork": "Optimism Sepolia",
+                "toNetworkChainId": 11155420
 			}
 		],
 		"tokens": [
@@ -58,18 +61,21 @@
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"tokenName": "LINK",
-				"minNoRefund": "0.01",
-				"min": "0.5",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.0001",
+				"min": "0.0005",
 				"max": "10.0",
-				"fixedFees": "0.1",
+				"fixedFees": "0.0001",
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Optimism Sepolia",
+                "toNetworkChainId": 11155420,
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
 				"toToken": "LINK",
+				"calcGasCostOnBC2": false,
 				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
@@ -77,38 +83,44 @@
 				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
 				"privateKey4refund": "ARSepolia_LINK_REFUND",
 				"tokenName": "LINK",
-				"minNoRefund": "0.01",
-				"min": "0.5",
-				"max": "10.0",
-				"fixedFees": "0.1",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.00001",
+				"min": "0.0005",
+				"max": "100.0",
+				"fixedFees": "0.0001",
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "ARSepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Arbitrum Sepolia",
+                "toNetworkChainId": 421614,
 				"toTokenContractAddress": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
 				"toToken": "LINK",
-				"conversionRateTokenBC1toTokenBC2": 1.0
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
 			{
 				"activated": false,
 				"listeningAddress": "0xF3842962562138C466649B19dEfc3C305af6BA64",
 				"privateKey4refund": "BASepolia_LINK_REFUND",
 				"tokenName": "LINK",
-				"minNoRefund": "0.01",
-				"min": "0.5",
-				"max": "10.0",
-				"fixedFees": "0.1",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.000001",
+				"min": "0.0005",
+				"max": "100.0",
+				"fixedFees": "0.0001",
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "BASepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"toNetwork": "Base Sepolia",
+                "toNetworkChainId": 84532,
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
 				"toToken": "LINK",
-				"conversionRateTokenBC1toTokenBC2": 1.0
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 0.1
 			}
 		]
 	},
@@ -117,6 +129,7 @@
 			"networkName": "Optimism Sepolia",
 			"networkLongName": "Optimism Sepolia Testnet",
 			"symbol": "ETH",
+			"chainId": 11155420,
 			"testnet": true,
 			"RPC_URLs": [
 				{
@@ -130,6 +143,7 @@
 			"networkName": "Arbitrum Sepolia",
 			"networkLongName": "Arbitrum Sepolia (testnet)",
 			"symbol": "ETH",
+			"chainId": 421614,
 			"testnet": true,
 			"RPC_URLs": [
 				{
@@ -143,6 +157,7 @@
 			"networkName": "Base Sepolia",
 			"networkLongName": "Base Sepolia (testnet)",
 			"symbol": "ETH",
+			"chainId": 84532,
 			"testnet": true,
 			"RPC_URLs": [
 				{

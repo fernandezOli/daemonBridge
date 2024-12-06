@@ -1,13 +1,28 @@
-# Sample Hardhat Project
+# Hardhat Tests for Daemon Bridge
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+Hardhat Tests for Daemon Bridge.
 
-Try running some of the following tasks:
+## Run Test native token to native token
+
+Exchange sepolia/ETH to Optimism sepolia/ETH
+```shell
+npx hardhat test test/optimism.js
+```
+
+## Run Test token to token
+
+Exchange sepolia/LINK to Optimism sepolia/LINK
+```shell
+npx hardhat test test/optimism-LINK.js
+```
+
+Exchange sepolia/LINK to Arbitrum sepolia/LINK
+```shell
+npx hardhat test test/arbitrum-LINK.js
+```
+
+## Run All Tests
 
 ```shell
-npx hardhat help
 npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
 ```

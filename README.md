@@ -33,32 +33,9 @@ npm install
 
 ## Configuration
 
-1. Create `.env` file with required keys:
-```env
-# if admin want mail on error else set to false
-SEND_MAIL_TO_ADMIN=true
-SMTP_ADDRESS="your_smtp_address (ex: smtp.myprovider.com)"
-SMTP_PORT=25 (normaly 25)
-SECURE=false (normaly false)
-FROM_ADDRESS="daemonbridge@daemon.com" (any address you want, but some provider need a valid account, use your mail address if needed)
-ADMIN_ADDRESS="your_mail_address_to_receive_mail"
-
-# URL API KEYS
-ETHERSCAN_API_KEY="your_etherscan_api_key"
-INFURA_API_KEY="your_infura_api_key"
-
-# payments accounts natif
-Sepolia_PRIVATE_KEY="your_sepolia_private_key"
-
-# payments accounts tokens
-OPSepolia_PRIVATE_KEY="your_op_sepolia_private_key"
-
-# refund accounts tokens
-OPSepolia_LINK_REFUND="your_sepolia_listener_private_key"
-```
-
-2. Configure networks and tokens in `config/config.json`
-3. See `doc_dev.md` for detailed configuration instructions
+1. Create `.env` file with required keys. See `doc_run.md` for detailed instructions.
+2. Configure networks and tokens in `config/config.json`. See `doc_dev.md` for detailed instructions.
+3. lorem
 
 ## Usage
 
@@ -105,7 +82,7 @@ Production Mode:
 ├── config/          # Configuration files
 ├── images/          # Architecture diagrams
 ├── hardhat-test/    # Test environment
-└── doc_dev.md       # Developer documentation
+└── docs/            # Developer documentations
 ```
 
 ### Testing

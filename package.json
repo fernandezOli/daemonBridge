@@ -1,6 +1,6 @@
 {
   "name": "daemon-bridge",
-  "version": "1.0",
+  "version": "0.1.0-mono-alpha",
   "description": "Daemon for bridge.",
   "author": "Olivier F. and Julien B.",
   "license": "MIT",
@@ -9,6 +9,7 @@
     "deasync": "^0.1.30",
     "dotenv": "^16.4.5",
     "ethers": "^5.7.2",
+    "fs": "^0.0.1-security",
     "http": "^0.0.1-security",
     "nodemailer": "^6.9.16",
     "react-scripts": "^5.0.1"
@@ -18,10 +19,11 @@
     "build": "react-scripts build",
     "test": "node daemonBridge.js",
     "eject": "react-scripts eject",
-    "daemon1": "node daemonBridge.js 3000",
-    "daemon2": "node daemonBridge.js 3001",
-    "daemon3": "node daemonBridge.js 3002",
-    "daemon4": "node daemonBridge.js 3003"
+    "sepolia": "node daemonBridge.js -p:3000 -c:./config/sepolia.json",
+    "daemon1": "node daemonBridge.js -p:3000",
+    "daemon2": "node daemonBridge.js -p:3001",
+    "daemon3": "node daemonBridge.js -p:3002",
+    "daemon4": "node daemonBridge.js -p:3003"
   },
   "browserslist": {
     "production": [

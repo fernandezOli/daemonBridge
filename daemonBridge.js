@@ -4,42 +4,57 @@ const { exit } = require('process');
 const daemonBridge = require('./daemon.js');
 let daemon = null;
 
+let httpServerPort = 3000; // default port
+let configFile = "./config/config.json"; // default config file
+
+// load options
+if(process.argv.length > 2) {
+    for(i = 2; i < process.argv.length; i++) {
+        const param = process.argv[i].trim();
+        const params = param.split(':');
+        if (params.length < 2 || params[1] === "") continue;
+        switch (params[0]) {
+            case '-p':
+              httpServerPort = params[1].trim();
+              break;
+            case '-c':
+                configFile = params[1].trim();
+              break;
+            default:
+              console.log("❌ Unknown option: " + params[0]);
+        }
+    }
+}
+
 // launch the daemon
 try {
-	daemon = new daemonBridge();
+	daemon = new daemonBridge(configFile);
 } catch(error) {
 	console.error('❌ ERROR lauching daemon');
 	if(error !== undefined) console.error(error);
-	exit();
+	exit(1);
 }
 
 if(daemon === null) {
 	console.error("❌ ERROR lauching daemon (unknown error)");
-	exit();
+	exit(2);
 }
 
 console.log('');
 console.log("Launching daemon at:", new Date().toString());
 console.log('');
 
-let httpServerPort = 3000; // default port for npm start
-const params = process.argv.slice(2);
-if(params[0] !== undefined) {
-	const paramPort = params[0].trim();
-	if(paramPort !== undefined && paramPort !== null && paramPort !== "") httpServerPort = paramPort;
-}
-
 http.createServer(async function (req, res) {
 	httpServer(req, res);
 }).listen(httpServerPort);
 
-console.log("┌───────────────────────────────────┐");
-console.log("│                                   │".replaceAll(' ','\u2002'));
-console.log("│   Daemon Bridge - v 1.0           │".replaceAll(' ','\u2002'));
-console.log("│                                   │".replaceAll(' ','\u2002'));
-console.log("│   Started on port: "+httpServerPort+"           │".replaceAll(' ','\u2002'));
-console.log("│                                   │".replaceAll(' ','\u2002'));
-console.log("└───────────────────────────────────┘");
+console.log("┌───────────────────────────────────────┐");
+console.log("│                                       │".replaceAll(' ','\u2002'));
+console.log("│   Daemon Bridge - v0.1.0-mono-alpha   │".replaceAll(' ','\u2002'));
+console.log("│                                       │".replaceAll(' ','\u2002'));
+console.log("│   Started on port: "+httpServerPort+"               │".replaceAll(' ','\u2002'));
+console.log("│                                       │".replaceAll(' ','\u2002'));
+console.log("└───────────────────────────────────────┘");
 
 async function httpServer(req, res) {
 
