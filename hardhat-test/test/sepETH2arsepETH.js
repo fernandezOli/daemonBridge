@@ -2,10 +2,10 @@ const ethers = require('ethers');
 require('dotenv').config()
 const { expect } = require("chai");
 
-const serverAddress = "http://localhost:3001/";
+const serverAddress = "http://localhost:3000/";
 
-const fromNetworkName = "Optimism Sepolia";
-const toNetworkName = "Sepolia";
+const fromNetworkName = "Sepolia";
+const toNetworkName = "Arbitrum Sepolia";
 const fromTokenName = "ETH (native)";
 const toTokenName = "ETH (native)";
 

@@ -53,6 +53,22 @@
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
 				"toNetwork": "Optimism Sepolia",
                 "toNetworkChainId": 11155420
+			},
+			{
+				"activated": true,
+				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
+				"privateKey4refund": "ARSepolia_LINK_REFUND",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.0001",
+				"min": "0.0005",
+				"max": "2.0",
+				"fixedFees": "0.0001",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"calcGasCostOnBC2": false,
+				"toPrivateKey": "ARSepolia_PRIVATE_KEY",
+				"toNetwork": "Arbitrum Sepolia",
+                "toNetworkChainId": 421614
 			}
 		],
 		"tokens": [
@@ -85,9 +101,9 @@
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"tokenName": "LINK",
 				"gasCostOnRefund": false,
-				"minNoRefund": "0.00001",
+				"minNoRefund": "0.0001",
 				"min": "0.0005",
-				"max": "100.0",
+				"max": "10.0",
 				"fixedFees": "0.0001",
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,

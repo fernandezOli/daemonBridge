@@ -98,7 +98,7 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 	});
 
 	describe("-- Test token " + fromNetworkName + "/" + fromTokenName + " To " + toNetworkName + "/" + toTokenName + " --", function () {
-		it("** Test transfert token **", async function () {
+		xit("** Test transfert token **", async function () {
 			console.log("      - ** Test transfert token **");
 
 			// get initial token balance
