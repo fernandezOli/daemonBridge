@@ -854,6 +854,12 @@ module.exports = class daemon {
 	//**** Html requests ****
 	//***********************
 
+	// get networkName for html
+	getNetworkName() {
+		//console.log("--- getNetworkName ---");
+		return networkList.listeningNetwork.networkName;
+	}
+
 	// make json for html request
 	// httpServerPort: http port
 	// return: json string

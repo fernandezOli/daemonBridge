@@ -48,13 +48,27 @@ http.createServer(async function (req, res) {
 	httpServer(req, res);
 }).listen(httpServerPort);
 
-console.log("┌───────────────────────────────────────┐");
-console.log("│                                       │".replaceAll(' ','\u2002'));
-console.log("│   Daemon Bridge - v0.1.0-mono-alpha   │".replaceAll(' ','\u2002'));
-console.log("│                                       │".replaceAll(' ','\u2002'));
-console.log("│   Started on port: "+httpServerPort+"               │".replaceAll(' ','\u2002'));
-console.log("│                                       │".replaceAll(' ','\u2002'));
-console.log("└───────────────────────────────────────┘");
+let title = "Daemon Bridge - v0.1.0-mono-alpha";
+let subTitle1 = "Started on port: " + httpServerPort;
+let subTitle2 = "Network: " + daemon.getNetworkName();
+let maxLength = title.length;
+if (subTitle1.length > maxLength) maxLength = subTitle1.length;
+if (subTitle2.length > maxLength) maxLength = subTitle2.length;
+const stars = "─".repeat(maxLength + 6);
+const spaces = " ".repeat(maxLength + 6);
+subTitle1 = subTitle1 + " ".repeat(maxLength - subTitle1.length);
+subTitle2 = subTitle2 + " ".repeat(maxLength - subTitle2.length);
+
+console.log("┌" + stars + "┐");
+console.log("│" + spaces + "│".replaceAll(' ','\u2002'));
+console.log("│   " + title + "   │".replaceAll(' ','\u2002'));
+console.log("│" + spaces + "│".replaceAll(' ','\u2002'));
+console.log("│   " + subTitle1 + "   │".replaceAll(' ','\u2002'));
+console.log("│" + spaces + "│".replaceAll(' ','\u2002'));
+console.log("│   " + subTitle2 + "   │".replaceAll(' ','\u2002'));
+console.log("│" + spaces + "│".replaceAll(' ','\u2002'));
+console.log("└" + stars + "┘");
+console.log('');
 
 async function httpServer(req, res) {
 

@@ -2,15 +2,15 @@ const ethers = require('ethers');
 require('dotenv').config()
 const { expect } = require("chai");
 
-const serverAddress = "http://localhost:3000/";
+const serverAddress = "http://localhost:3001/";
 
 const abi = [
 	"function balanceOf(address) view returns(uint)",
 	"function transfer(address to, uint amount) returns(bool)",
 ];
 
-const fromNetworkName = "Sepolia";
-const toNetworkName = "Optimism Sepolia";
+const fromNetworkName = "Optimism Sepolia";
+const toNetworkName = "Sepolia";
 const fromTokenName = "LINK";
 const toTokenName = "LINK";
 
@@ -98,7 +98,7 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 	});
 
 	describe("-- Test token " + fromNetworkName + "/" + fromTokenName + " To " + toNetworkName + "/" + toTokenName + " --", function () {
-		xit("** Test transfert token **", async function () {
+		it("** Test transfert token **", async function () {
 			console.log("      - ** Test transfert token **");
 
 			// get initial token balance

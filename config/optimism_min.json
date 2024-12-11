@@ -1,0 +1,79 @@
+{
+	"general": {
+		"project": "Deamon Bridge",
+		"version": "1.0"
+	},
+	"listeningNetwork": {
+		"activeNativeToken": true,
+		"networkName": "Optimism Sepolia",
+		"networkLongName": "Optimism Sepolia (testnet)",
+		"symbol": "ETH",
+		"testnet": true,
+		"chainId": 11155420,
+		"RPC_URLs": [
+			{
+				"rpcurl": "https://sepolia.optimism.io",
+				"type": "",
+				"apikey": ""
+			}
+		],
+		"nativeTokens": [
+			{
+				"activated": true,
+				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
+				"privateKey4refund": "OPSepolia_LINK_REFUND",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.0001",
+				"min": "0.0005",
+				"max": "2.0",
+				"fixedFees": "0.0001",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"calcGasCostOnBC2": false,
+				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
+				"toNetwork": "Sepolia",
+                "toNetworkChainId": 11155111
+			}
+		],
+		"tokens": [
+			{
+				"activated": true,
+				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
+				"privateKey4refund": "OPSepolia_LINK_REFUND",
+				"tokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
+				"tokenName": "LINK",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.0001",
+				"min": "0.0005",
+				"max": "10.0",
+				"fixedFees": "0.0001",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
+				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
+				"toNetwork": "Sepolia",
+                "toNetworkChainId": 11155111,
+				"toTokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+				"toToken": "LINK",
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 9.0
+			}
+		]
+	},
+	"networks": [
+		{
+			"networkName": "Sepolia",
+			"networkLongName": "Sepolia (testnet)",
+			"symbol": "ETH",
+			"chainId": 11155111,
+			"testnet": true,
+			"RPC_URLs": [
+				{
+					"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
+					"type": "",
+					"apikey": ""
+				}
+			]
+		}
+	]
+}
