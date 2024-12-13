@@ -34,7 +34,6 @@ try {
 	if(error !== undefined) console.error(error);
 	exit(1);
 }
-
 if(daemon === null) {
 	console.error("❌ ERROR lauching daemon (unknown error)");
 	exit(2);
@@ -72,7 +71,7 @@ console.log('');
 
 async function httpServer(req, res) {
 
-	res.setHeader("Access-Control-Allow-Origin", "*"); //"*"
+	res.setHeader("Access-Control-Allow-Origin", "*");
 	res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 	res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
