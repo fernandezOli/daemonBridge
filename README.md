@@ -69,8 +69,6 @@ Currently supporting Sepolia testnet as the source network:
 ![Working Principle](./images/principe.png)
 
 ### Network Configurations
-Demo Mode:
-![Demo Configuration](./images/demo_config.png)
 
 Production Mode:
 ![Production Configuration](./images/prod_config.png)

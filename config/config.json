@@ -6,7 +6,7 @@
 	"listeningNetwork": {
 		"activeNativeToken": true,
 		"networkName": "sepolia",
-		"networkLongName": "Ethereum Testnet Sepolia",
+		"networkLongName": "Ethereum Sepolia Testnet",
 		"symbol": "ETH",
 		"testnet": true,
 		"chainId": 11155111,
@@ -25,6 +25,11 @@
 				"rpcurl": "https://1rpc.io/sepolia",
 				"type": "",
 				"apikey": ""
+			},
+			{
+				"rpcurl": "https://ethereum-sepolia.blockpi.network/v1/rpc/",
+				"type": "APIKEY",
+				"apikey": "BLOCKPI_Sepolia_API_KEY"
 			},
 			{
 				"rpcurl": "https://api-sepolia.etherscan.io/api/",
@@ -192,6 +197,16 @@
 					"apikey": ""
 				},
 				{
+					"rpcurl": "https://endpoints.omniatech.io/v1/op/sepolia/",
+					"type": "APIKEY",
+					"apikey": "OMNIATECH_OPSepolia_API_KEY"
+                },
+				{
+					"rpcurl": "https://optimism-sepolia.blockpi.network/v1/rpc/",
+					"type": "APIKEY",
+					"apikey": "BLOCKPI_OPSepolia_API_KEY"
+                },
+				{
 					"rpcurl": "https://optimism-sepolia.drpc.org",
 					"type": "",
 					"apikey": ""
@@ -206,9 +221,14 @@
 			"testnet": true,
 			"RPC_URLs": [
 				{
-					"rpcurl": "https://arbitrum-sepolia.blockpi.network/v1/rpc/public",
+					"rpcurl": "https://api.zan.top/arb-sepolia",
 					"type": "",
 					"apikey": ""
+                },
+				{
+					"rpcurl": "https://arbitrum-sepolia.blockpi.network/v1/rpc/",
+					"type": "APIKEY",
+					"apikey": "BLOCKPI_ARSepolia_API_KEY"
                 },
                 {
                     "rpcurl": "https://arbitrum-sepolia.infura.io/v3/",
@@ -229,6 +249,11 @@
 					"type": "",
 					"apikey": ""
 				},
+				{
+					"rpcurl": "https://base-sepolia.blockpi.network/v1/rpc/",
+					"type": "APIKEY",
+					"apikey": "BLOCKPI_BASepolia_API_KEY"
+                },
 				{
 					"rpcurl": "https://base-sepolia-rpc.publicnode.com",
 					"type": "",

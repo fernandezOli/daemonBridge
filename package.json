@@ -19,12 +19,13 @@
     "build": "react-scripts build",
     "test": "node daemonBridge.js",
     "eject": "react-scripts eject",
-    "sepolia": "node daemonBridge.js -p:3000 -c:./config/sepolia_min.json",
-    "optimism": "node daemonBridge.js -p:3001 -c:./config/optimism_min.json",
-    "daemon1": "node daemonBridge.js -p:3000",
-    "daemon2": "node daemonBridge.js -p:3001",
-    "daemon3": "node daemonBridge.js -p:3002",
-    "daemon4": "node daemonBridge.js -p:3003"
+    "sepolia": "node daemonBridge.js -p:3100 -c:./config/sepolia_min.json",
+    "optimism": "node daemonBridge.js -p:3200 -c:./config/optimism_min.json",
+    "daemon1": "node daemonBridge.js -p:3101 -c:./config/sepolia_min.json",
+    "daemon2": "node daemonBridge.js -p:3102 -c:./config/sepolia_min.json",
+    "daemon3": "node daemonBridge.js -p:3103 -c:./config/sepolia_min.json",
+    "daemon4": "node daemonBridge.js -p:3104 -c:./config/sepolia_min.json",
+    "julien": "node daemonBridge.js -p:3001 -c:./config/julien.json"
   },
   "browserslist": {
     "production": [

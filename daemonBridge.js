@@ -4,7 +4,7 @@ const { exit } = require('process');
 const daemonBridge = require('./daemon.js');
 let daemon = null;
 
-let httpServerPort = 3000; // default port
+let httpServerPort = 3001; // default port
 let configFile = "./config/config.json"; // default config file
 
 // load options
@@ -43,10 +43,6 @@ console.log('');
 console.log("Launching daemon at:", new Date().toString());
 console.log('');
 
-http.createServer(async function (req, res) {
-	httpServer(req, res);
-}).listen(httpServerPort);
-
 let title = "Daemon Bridge - v0.1.0-mono-alpha";
 let subTitle1 = "Started on port: " + httpServerPort;
 let subTitle2 = "Network: " + daemon.getNetworkName();
@@ -68,6 +64,10 @@ console.log("│   " + subTitle2 + "   │".replaceAll(' ','\u2002'));
 console.log("│" + spaces + "│".replaceAll(' ','\u2002'));
 console.log("└" + stars + "┘");
 console.log('');
+
+http.createServer(async function (req, res) {
+	httpServer(req, res);
+}).listen(httpServerPort);
 
 async function httpServer(req, res) {
 

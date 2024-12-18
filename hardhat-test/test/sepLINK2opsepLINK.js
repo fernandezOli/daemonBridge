@@ -2,7 +2,7 @@ const ethers = require('ethers');
 require('dotenv').config()
 const { expect } = require("chai");
 
-const serverAddress = "http://localhost:3000/";
+const serverAddress = "http://localhost:3001/";
 
 const abi = [
 	"function balanceOf(address) view returns(uint)",

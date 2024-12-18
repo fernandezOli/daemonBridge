@@ -138,10 +138,10 @@ module.exports = class daemon {
 			let validProvider;
 			(async () => validProvider = await this.getFirstValidProvider(networkList.listeningNetwork.RPC_URLs, 0).then().catch())();
 			while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-            if (validProvider === null) throw 'Invalid RPC_URL for listening network';
+            if (validProvider === null) throw '❌ Invalid RPC_URL for listening network';
             this._listeningNetworkProvider = validProvider;
 		} catch (error) {
-			console.error('ERROR initProviders for listening Network [' + error.code + ']: ', error);
+			console.error('❌ ERROR initProviders for listening Network [' + error.code + ']: ', error);
 			throw error;
 		}
 
@@ -152,11 +152,11 @@ module.exports = class daemon {
 				let validProvider;
 				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i + 1).then().catch())();
 				while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-				if (validProvider === null) throw 'Invalid RPC_URL for network: ' + networkList.networks[i].networkName;
+				if (validProvider === null) throw '❌ Invalid RPC_URL for network: ' + networkList.networks[i].networkName;
 				this._networkProvider[i] = validProvider;
 			}
 		} catch (error) {
-			console.error('ERROR initProviders [' + error.code + ']: ', error);
+			console.error('❌ ERROR initProviders [' + error.code + ']: ', error);
 			throw error;
 		}
 	}
@@ -176,38 +176,66 @@ module.exports = class daemon {
 				//console.log("Check provider: ", url);
 
 				if(networkUrlList[i].type !== "") {
-					if(networkUrlList[i].type === "ETHERSCAN")
-						providerUrl = new ethers.providers.EtherscanProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
-					else
-						providerUrl = new ethers.providers.InfuraProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
+					if(networkUrlList[i].type === "ETHERSCAN") {
+						if (networkIndex === 0) providerUrl = new ethers.providers.EtherscanProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
+                        else providerUrl = new ethers.providers.EtherscanProvider(networkList.networks[networkIndex - 1].networkName, process.env[networkUrlList[i].apikey]);
+                    }
+                    if(networkUrlList[i].type === "INFURA") {
+						if (networkIndex === 0) providerUrl = new ethers.providers.InfuraProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
+						else providerUrl = new ethers.providers.InfuraProvider(networkList.networks[networkIndex - 1].networkName, process.env[networkUrlList[i].apikey]);
+                    }
+                    if(networkUrlList[i].type === "APIKEY") {
+                        providerUrl = new ethers.providers.JsonRpcProvider({ url: url + process.env[networkUrlList[i].apikey], timeout: 10000 }); //StaticJsonRpcProvider ???
+                    }
 				}
-				else providerUrl = new ethers.providers.JsonRpcProvider(url);
+				else providerUrl = new ethers.providers.JsonRpcProvider({ url: url, timeout: 10000 }); //StaticJsonRpcProvider ???
 
-                if (providerUrl === null) continue;
+                if (providerUrl === null || providerUrl === undefined) continue;
 
                 // Check chainId
                 try {
-                    const networkData = await providerUrl.getNetwork();
+                    const chainId = parseInt(await providerUrl.send("eth_chainId", []),16);
                     if (networkIndex === 0) {
-                        if (networkData.chainId !== networkList.listeningNetwork.chainId) console.error("Warning invalid provider chainId for listening network");
+                        if (chainId !== networkList.listeningNetwork.chainId) {
+                            console.error("⚠️ Warning invalid provider chainId for listening network");
+                            providerUrl = null;
+                            continue;
+                        }
                     }
-                    else if (networkData.chainId !== networkList.networks[networkIndex - 1].chainId) console.error("Warning invalid provider chainId for " + networkList.networks[networkIndex - 1].networkName);
+                    else if (chainId !== networkList.networks[networkIndex - 1].chainId) {
+                            console.error("⚠️ Warning invalid provider chainId for " + networkList.networks[networkIndex - 1].networkName + " chainId found:" + networkData.chainId + ", config:" + networkList.networks[networkIndex - 1].chainId);
+                            providerUrl = null;
+                            continue;
+                        }
                 } catch (error) {
-                    console.error("Error data provider: ", error);
+                    providerUrl = null;
+                    if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
+                        continue;
+                    }
+                    if (error.code === "SERVER_ERROR") {
+                        if (error.body !== undefined && error.body !== null) {
+                            let errBody = JSON.parse(error.body);
+                            console.error("⚠️ Error getFirstValidProvider (" + url + "): ", errBody.error.message);
+                        }
+                        else console.error("⚠️ Error getFirstValidProvider (" + url + "): ", error);
+                        continue;
+                    }
+                    //console.error("❌ Error getFirstValidProvider (code): ", error.code);
+                    if (networkIndex === 0) console.error("❌ Error getFirstValidProvider on: listening Network");
+                    else console.error("❌ Error getFirstValidProvider on: ", networkList.networks[networkIndex - 1].networkName);
+                    console.error("❌ Error getFirstValidProvider (eth_chainId): ", error);
                     continue;
                 }
 
                 // TODO: check filter ?
-
-				//console.log("Valid provider found: ", url);
-				//validProviderIndex[networkIndex] = i;
+				//console.log("Valid provider found: ", providerUrl);
 				return providerUrl;
 			} catch (error) {
-				console.error("Error provider: ", error);
+				console.error("❌ Error getFirstValidProvider: ", error);
 				continue;
 			}
 		}
-		console.error("Error, no valid provider found !");
+		console.error("❌ Error getFirstValidProvider, no valid provider found !");
 		return null;
 	}
 
