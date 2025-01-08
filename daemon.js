@@ -1,4 +1,3 @@
-// Daemon.js
 const { ethers, BigNumber } = require('ethers');
 require("dotenv").config();
 const deasync = require('deasync');
@@ -11,13 +10,10 @@ const transferABI = [
     "function decimals() view returns (uint256)"
 ];
 
-const defaultConfigFile = './config/config.json';
+const Status = { NONE: "NONE", STARTING: "STARTING", WAITING: "WAITING", SLEEPING: "SLEEPING", RUNNING: "RUNNING", FAIL: "FAIL" };
+
 let initialConfig = null;
 let networkList = null;
-
-//let validProviderIndex = []; // valid Provider Index by network, listening = 0, destination = network index + 1
-const Status = { NONE: "NONE", STARTING: "STARTING", WAITING: "WAITING", SLEEPING: "SLEEPING", RUNNING: "RUNNING", FAIL: "FAIL" };
-let status = Status.NONE;
 
 module.exports = class daemon {
 	_listeningNetworkProvider = null;
@@ -25,22 +21,24 @@ module.exports = class daemon {
 	_nativeListeners = [];
 	_tokensList = null;
 	_mailTransporter = null;
+    _status = Status.NONE;
+    _defaultConfigFile = './config/config.json';
 
 	constructor(configFile) {
 		//console.log("-- loading daemon--");
 
 		try {
-			status = Status.STARTING;
+			this._status = Status.STARTING;
             this.loadConfigFile(configFile);
-            if (initialConfig === null || networkList === null) { status = Status.FAIL; throw 'Invalid configuration file, abort !'; }
+            if (initialConfig === null || networkList === null) { this._status = Status.FAIL; throw 'Invalid configuration file, abort !'; }
             this.checkPrivateKeys();
 			this.initProviders();
 			this.startListening();
 			this.initMailer();
 			this.updateBalances();
-			status = Status.RUNNING;
+			this._status = Status.RUNNING;
         } catch (error) {
-			status = Status.FAIL;
+			this._status = Status.FAIL;
 			throw error;
 		}
 	}
@@ -51,7 +49,7 @@ module.exports = class daemon {
         try {
             if (configFile === undefined || configFile === null || configFile === "") {
                 console.log("⚠️ loading default configuration");
-                const _config = JSON.parse(fs.readFileSync(defaultConfigFile, "utf8"));
+                const _config = JSON.parse(fs.readFileSync(this._defaultConfigFile, "utf8"));
                 initialConfig = _config;
                 networkList = _config;
                 return;
@@ -84,6 +82,7 @@ module.exports = class daemon {
 		// native private keys
 		for (let i = 0; i < networkList.listeningNetwork.nativeTokens.length; i++) {
 			_token = networkList.listeningNetwork.nativeTokens[i];
+            if (_token.activated !== true) continue;
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
 				throw 'Invalid (null) native private key for toPrivateKey in config';
 			}
@@ -107,6 +106,7 @@ module.exports = class daemon {
 		// tokens private keys
 		for (let i = 0; i < networkList.listeningNetwork.tokens.length; i++) {
 			_token = networkList.listeningNetwork.tokens[i];
+            if (_token.activated !== true) continue;
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
 				throw 'Invalid token private key for toPrivateKey in config';
 			}
@@ -133,27 +133,16 @@ module.exports = class daemon {
 	initProviders() {
 		//console.log("-- init Providers --");
 
-		// Init listening Network
-		try {
-			let validProvider;
-			(async () => validProvider = await this.getFirstValidProvider(networkList.listeningNetwork.RPC_URLs, 0).then().catch())();
-			while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-            if (validProvider === null) throw '❌ Invalid RPC_URL for listening network';
-            this._listeningNetworkProvider = validProvider;
-		} catch (error) {
-			console.error('❌ ERROR initProviders for listening Network [' + error.code + ']: ', error);
-			throw error;
-		}
-
-		// Init destination Networks
+		// Init Networks
 		try {
 			this._networkProvider = [];
 			for (let i = 0; i < networkList.networks.length; i++) {
 				let validProvider;
-				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i + 1).then().catch())();
+				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i).then().catch())();
 				while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-				if (validProvider === null) throw '❌ Invalid RPC_URL for network: ' + networkList.networks[i].networkName;
+				if (validProvider === null) throw '❌ No valid RPC_URL found for network: ' + networkList.networks[i].networkName;
 				this._networkProvider[i] = validProvider;
+                if(networkList.networks[i].chainId === networkList.listeningNetwork.chainId) this._listeningNetworkProvider = validProvider;
 			}
 		} catch (error) {
 			console.error('❌ ERROR initProviders [' + error.code + ']: ', error);
@@ -173,40 +162,35 @@ module.exports = class daemon {
 			try {
                 providerUrl = null;
 				let url = networkUrlList[i].rpcurl;
-				//console.log("Check provider: ", url);
+                let _apiKey = networkUrlList[i].apikey !== ""?process.env[networkUrlList[i].apikey]:"";
+                let _networkName = networkList.networks[networkIndex].networkName;
+                let _chainId = networkList.networks[networkIndex].chainId;
 
-				if(networkUrlList[i].type !== "") {
-					if(networkUrlList[i].type === "ETHERSCAN") {
-						if (networkIndex === 0) providerUrl = new ethers.providers.EtherscanProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
-                        else providerUrl = new ethers.providers.EtherscanProvider(networkList.networks[networkIndex - 1].networkName, process.env[networkUrlList[i].apikey]);
-                    }
-                    if(networkUrlList[i].type === "INFURA") {
-						if (networkIndex === 0) providerUrl = new ethers.providers.InfuraProvider(networkList.listeningNetwork.networkName, process.env[networkUrlList[i].apikey]);
-						else providerUrl = new ethers.providers.InfuraProvider(networkList.networks[networkIndex - 1].networkName, process.env[networkUrlList[i].apikey]);
-                    }
-                    if(networkUrlList[i].type === "APIKEY") {
-                        providerUrl = new ethers.providers.JsonRpcProvider({ url: url + process.env[networkUrlList[i].apikey], timeout: 10000 }); //StaticJsonRpcProvider ???
-                    }
-				}
-				else providerUrl = new ethers.providers.JsonRpcProvider({ url: url, timeout: 10000 }); //StaticJsonRpcProvider ???
-
+                // TODO: add url AND chainId for ETHERSCAN and INFURA
+                switch (networkUrlList[i].type) {
+                    case 'ETHERSCAN':
+						providerUrl = new ethers.providers.EtherscanProvider(_chainId, _apiKey);
+                        break;
+                    case 'INFURA':
+						providerUrl = new ethers.providers.InfuraProvider(_chainId, _apiKey);
+                        break;
+                    case 'STATIC':
+                        providerUrl = new ethers.providers.StaticJsonRpcProvider({ url: url + _apiKey, timeout: 20000 });
+                        break;
+                    case '':
+                    default:
+                        providerUrl = new ethers.providers.JsonRpcProvider({ url: url + _apiKey, timeout: 20000 });
+                }
                 if (providerUrl === null || providerUrl === undefined) continue;
 
                 // Check chainId
                 try {
                     const chainId = parseInt(await providerUrl.send("eth_chainId", []),16);
-                    if (networkIndex === 0) {
-                        if (chainId !== networkList.listeningNetwork.chainId) {
-                            console.error("⚠️ Warning invalid provider chainId for listening network");
-                            providerUrl = null;
-                            continue;
-                        }
+                    if (chainId !== _chainId) {
+                        console.error("⚠️ Warning invalid provider chainId for " + _networkName + " chainId found:" + chainId + ", config:" + _chainId);
+                        providerUrl = null;
+                        continue;
                     }
-                    else if (chainId !== networkList.networks[networkIndex - 1].chainId) {
-                            console.error("⚠️ Warning invalid provider chainId for " + networkList.networks[networkIndex - 1].networkName + " chainId found:" + networkData.chainId + ", config:" + networkList.networks[networkIndex - 1].chainId);
-                            providerUrl = null;
-                            continue;
-                        }
                 } catch (error) {
                     providerUrl = null;
                     if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
@@ -221,8 +205,7 @@ module.exports = class daemon {
                         continue;
                     }
                     //console.error("❌ Error getFirstValidProvider (code): ", error.code);
-                    if (networkIndex === 0) console.error("❌ Error getFirstValidProvider on: listening Network");
-                    else console.error("❌ Error getFirstValidProvider on: ", networkList.networks[networkIndex - 1].networkName);
+                    console.error("❌ Error getFirstValidProvider on: ", _networkName);
                     console.error("❌ Error getFirstValidProvider (eth_chainId): ", error);
                     continue;
                 }
@@ -280,7 +263,7 @@ module.exports = class daemon {
 		// tokens
 		try {
 			this._tokensList = networkList.listeningNetwork.tokens;
-			for (tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
+			for (let tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
                 const _token = this._tokensList[tokenIndex];
 				if (initialConfig.listeningNetwork.tokens[tokenIndex].activated !== true) {
 					_token.activated = false;
@@ -385,11 +368,11 @@ module.exports = class daemon {
 	// get error from listening provider
 	async listeningProviderError(error) {
 		//console.log("--- listeningProviderError ---");
-		status = Status.FAIL;
+		this._status = Status.FAIL;
 		if (error.code === "SERVER_ERROR") {
 			console.error('Error listening Provider: SERVER_ERROR, restart listening !');
 			// restart listening (TODO and rpcurl ?)
-			if (this.restartListening()) status = Status.RUNNING;
+			if (this.restartListening()) this._status = Status.RUNNING;
 			return;
 		}
 		console.error('Error listening Provider: ', error);
@@ -955,7 +938,7 @@ module.exports = class daemon {
 	// get status for html request
 	getStatus() {
 		//console.log("--- getStatus ---");
-		return status;
+		return this._status;
 	}
 
 	//****************

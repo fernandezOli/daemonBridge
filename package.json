@@ -19,7 +19,7 @@
     "build": "react-scripts build",
     "test": "node daemonBridge.js",
     "eject": "react-scripts eject",
-    "sepolia": "node daemonBridge.js -p:3100 -c:./config/sepolia_min.json",
+    "sepolia": "node daemonBridge.js -p:3001 -c:./config/sepolia_min.json",
     "optimism": "node daemonBridge.js -p:3200 -c:./config/optimism_min.json",
     "daemon1": "node daemonBridge.js -p:3101 -c:./config/sepolia_min.json",
     "daemon2": "node daemonBridge.js -p:3102 -c:./config/sepolia_min.json",

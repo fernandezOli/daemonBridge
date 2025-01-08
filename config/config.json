@@ -5,7 +5,7 @@
 	},
 	"listeningNetwork": {
 		"activeNativeToken": true,
-		"networkName": "sepolia",
+		"networkName": "Sepolia",
 		"networkLongName": "Ethereum Sepolia Testnet",
 		"symbol": "ETH",
 		"testnet": true,
@@ -15,31 +15,6 @@
 				"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
 				"type": "",
 				"apikey": ""
-			},
-			{
-				"rpcurl": "https://rpc2.sepolia.org",
-				"type": "",
-				"apikey": ""
-			},
-			{
-				"rpcurl": "https://1rpc.io/sepolia",
-				"type": "",
-				"apikey": ""
-			},
-			{
-				"rpcurl": "https://ethereum-sepolia.blockpi.network/v1/rpc/",
-				"type": "APIKEY",
-				"apikey": "BLOCKPI_Sepolia_API_KEY"
-			},
-			{
-				"rpcurl": "https://api-sepolia.etherscan.io/api/",
-				"type": "ETHERSCAN",
-				"apikey": "ETHERSCAN_API_KEY"
-			},
-			{
-				"rpcurl": "https://sepolia.infura.io/v3/",
-				"type": "INFURA",
-				"apikey": "INFURA_API_KEY"
 			}
 		],
 		"nativeTokens": [
@@ -99,6 +74,7 @@
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"tokenName": "LINK",
+				"tokenDecimals": 18,
 				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
 				"min": "0.0005",
@@ -112,6 +88,7 @@
                 "toNetworkChainId": 11155420,
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
 				"toToken": "LINK",
+				"toTokenDecimals": 18,
 				"calcGasCostOnBC2": false,
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
@@ -121,6 +98,7 @@
 				"privateKey4refund": "ARSepolia_LINK_REFUND",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"tokenName": "LINK",
+				"tokenDecimals": 18,
 				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
 				"min": "0.0005",
@@ -134,6 +112,7 @@
                 "toNetworkChainId": 421614,
 				"toTokenContractAddress": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
 				"toToken": "LINK",
+				"toTokenDecimals": 18,
 				"calcGasCostOnBC2": false,
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
@@ -143,6 +122,7 @@
 				"privateKey4refund": "BASepolia_LINK_REFUND",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"tokenName": "LINK",
+				"tokenDecimals": 18,
 				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
 				"min": "0.0005",
@@ -156,6 +136,7 @@
                 "toNetworkChainId": 84532,
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
 				"toToken": "LINK",
+				"toTokenDecimals": 18,
 				"calcGasCostOnBC2": false,
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
@@ -165,11 +146,12 @@
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"tokenContractAddress": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
 				"tokenName": "USDC",
+				"tokenDecimals": 6,
 				"gasCostOnRefund": false,
-				"minNoRefund": "0.0001",
-				"min": "0.0005",
+				"minNoRefund": "0.001",
+				"min": "0.01",
 				"max": "10.0",
-				"fixedFees": "0.0001",
+				"fixedFees": "0.001",
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
@@ -178,6 +160,55 @@
                 "toNetworkChainId": 11155420,
 				"toTokenContractAddress": "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
 				"toToken": "USDC",
+				"toTokenDecimals": 6,
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 1.0
+			},
+			{
+				"activated": false,
+				"listeningAddress": "<sepolia_swap>",
+				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
+				"tokenContractAddress": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+				"tokenName": "USDC",
+				"tokenDecimals": 6,
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.001",
+				"min": "0.01",
+				"max": "10.0",
+				"fixedFees": "0.001",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
+				"toPrivateKey": "Sepolia_swap_PRIVATE_KEY",
+				"toNetwork": "Sepolia",
+                "toNetworkChainId": 11155111,
+				"toTokenContractAddress": "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
+				"toToken": "EURC",
+				"toTokenDecimals": 6,
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 1.0
+			},
+			{
+				"activated": false,
+				"listeningAddress": "<sepolia_swap>",
+				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
+				"tokenContractAddress": "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
+				"tokenName": "EURC",
+				"tokenDecimals": 6,
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.001",
+				"min": "0.01",
+				"max": "10.0",
+				"fixedFees": "0.001",
+				"feesPcent": 0.01,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
+				"toPrivateKey": "Sepolia_swap_PRIVATE_KEY",
+				"toNetwork": "Sepolia",
+                "toNetworkChainId": 11155111,
+				"toTokenContractAddress": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+				"toToken": "USDC",
+				"toTokenDecimals": 6,
 				"calcGasCostOnBC2": false,
 				"conversionRateTokenBC1toTokenBC2": 1.0
 		    }
@@ -185,11 +216,13 @@
 	},
 	"networks": [
 		{
+            "activated": true,
 			"networkName": "Optimism Sepolia",
 			"networkLongName": "OP Sepolia Testnet",
 			"symbol": "ETH",
 			"chainId": 11155420,
 			"testnet": true,
+            "decimals": 18,
 			"RPC_URLs": [
 				{
 					"rpcurl": "https://sepolia.optimism.io",
@@ -198,12 +231,12 @@
 				},
 				{
 					"rpcurl": "https://endpoints.omniatech.io/v1/op/sepolia/",
-					"type": "APIKEY",
+					"type": "",
 					"apikey": "OMNIATECH_OPSepolia_API_KEY"
                 },
 				{
 					"rpcurl": "https://optimism-sepolia.blockpi.network/v1/rpc/",
-					"type": "APIKEY",
+					"type": "",
 					"apikey": "BLOCKPI_OPSepolia_API_KEY"
                 },
 				{
@@ -214,11 +247,13 @@
 			]
 		},
 		{
+            "activated": true,
 			"networkName": "Arbitrum Sepolia",
 			"networkLongName": "Arbitrum Sepolia Testnet",
 			"symbol": "ETH",
 			"chainId": 421614,
 			"testnet": true,
+            "decimals": 18,
 			"RPC_URLs": [
 				{
 					"rpcurl": "https://api.zan.top/arb-sepolia",
@@ -238,11 +273,13 @@
 			]
 		},
 		{
+            "activated": true,
 			"networkName": "Base Sepolia",
 			"networkLongName": "Base Sepolia Testnet",
 			"symbol": "ETH",
 			"chainId": 84532,
 			"testnet": true,
+            "decimals": 18,
 			"RPC_URLs": [
 				{
 					"rpcurl": "https://sepolia.base.org",
@@ -260,6 +297,47 @@
 					"apikey": ""
 				}
 			]
+		},
+		{
+            "activated": true,
+			"networkName": "Sepolia",
+			"networkLongName": "Ethereum Sepolia Testnet",
+			"symbol": "ETH",
+			"chainId": 11155111,
+			"testnet": true,
+            "decimals": 18,
+			"RPC_URLs": [
+                {
+                    "rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
+                    "type": "",
+                    "apikey": ""
+                },
+                {
+                    "rpcurl": "https://rpc2.sepolia.org",
+                    "type": "",
+                    "apikey": ""
+                },
+                {
+                    "rpcurl": "https://1rpc.io/sepolia",
+                    "type": "",
+                    "apikey": ""
+                },
+                {
+                    "rpcurl": "https://ethereum-sepolia.blockpi.network/v1/rpc/",
+                    "type": "",
+                    "apikey": "BLOCKPI_Sepolia_API_KEY"
+                },
+                {
+                    "rpcurl": "https://api-sepolia.etherscan.io/api/",
+                    "type": "ETHERSCAN",
+                    "apikey": "ETHERSCAN_API_KEY"
+                },
+                {
+                    "rpcurl": "https://sepolia.infura.io/v3/",
+                    "type": "INFURA",
+                    "apikey": "INFURA_API_KEY"
+                }
+                ]
 		}
 	]
 }

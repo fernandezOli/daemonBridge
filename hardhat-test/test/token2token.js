@@ -2,11 +2,12 @@ const ethers = require('ethers');
 require('dotenv').config()
 const { expect } = require("chai");
 
-const serverAddress = "http://localhost:3001/";
+const daemonAddress = "http://localhost:3001/";
 const fromNetworkName = "Sepolia";
 const toNetworkName = "Optimism Sepolia";
-const fromTokenName = "USDC";
-const toTokenName = "USDC";
+const fromTokenName = "LINK";
+const toTokenName = "LINK";
+let userTest = 1; // 0 - all tests, 1 - transfert test only, 2 - max test only, 3 - min test only, 4 - minNoRefund test only, 5 - no tests
 
 const abi = [
 	"function decimals() view returns(uint)",
@@ -16,7 +17,8 @@ const abi = [
 
 let loadedConfig = null;
 
-let testNetwork = null; // network index to test
+let networkId = null;
+let toNetworkId = null; // destination network index
 let testToken = null; // Token index to test
 
 let providerSend = null; // source network
@@ -25,7 +27,8 @@ let contractSendTokenAddress = null; // source token
 let contractReceiveTokenAddress = null; // destination token
 let contractSend =  null;
 let contractReceive =  null;
-let contract_decimals = 6; // default value for decimals, USDC: 6
+let contractSendDecimals = 18; // source token decimals
+let contractReceiveDecimals = 18; // destination token decimals
 
 let signerReceive = null; // listener
 let signerSender = null; // address who send token
@@ -43,19 +46,19 @@ const title = "*** Test token transfer from " + fromNetworkName + " to " + toNet
 const stars = "*".repeat(title.length);
 
 describe("\n" + stars + "\n" + title + "\n" + stars, function () {
-	before(async function () {
+    before(async function () {
 		//console.log("before");
 
-		// check if daemon is running
+        // check if daemon is running
 		try {
-			await fetch(serverAddress);
+			await fetch(daemonAddress);
 		} catch(error) {
 			expect(true, "❌ localhost Error, daemon not started !").to.be.false;
 		}
 
 		// Try to get json
 		try {
-            const response = await fetch(serverAddress + "json");
+            const response = await fetch(daemonAddress + "json");
             if (!response.ok) {
                 expect(true, "❌ localhost Error loading configuration, Response status:",response.status).to.be.false;
             }
@@ -65,30 +68,30 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 		}
 
 		// Init variables
-		testNetwork = findNetworkByName(loadedConfig.networks, toNetworkName);
-		expect(testNetwork !== null, "❌ Error network name not found !").to.be.true;
+        networkId = findNetworkByName(loadedConfig.networks, fromNetworkName);
+		expect(networkId !== null, "❌ Error network name not found: " + fromNetworkName + " !").to.be.true;
+
+        toNetworkId = findNetworkByName(loadedConfig.networks, toNetworkName);
+		expect(toNetworkId !== null, "❌ Error network name not found: " + toNetworkName + " !").to.be.true;
 
         const testTokenIndex = findTokenByName(loadedConfig.tokensList, toNetworkName, fromTokenName, toTokenName);
 		expect(testTokenIndex !== null, "❌ Error listener for token name not found !").to.be.true;
 		testToken = loadedConfig.tokensList[testTokenIndex];
 		expect(testToken.activated === true, "❌ Error token not activated !").to.be.true;
 
-		// use the first entry of RPC_URL
-		providerSend = new ethers.providers.JsonRpcProvider(loadedConfig.listeningNetwork.RPC_URLs[0].rpcurl); // sepolia
-		providerReceive = new ethers.providers.JsonRpcProvider(loadedConfig.networks[testNetwork].RPC_URLs[0].rpcurl); // optimism sepolia
+        providerSend = await getValidProvider(loadedConfig.networks[networkId], true);
+        if (providerSend === null) throw '❌ No valid RPC_URL found for network: ' + fromNetworkName;
 
-		contractSendTokenAddress = testToken.tokenContractAddress; // sepolia/USDC
-		contractReceiveTokenAddress = testToken.toTokenContractAddress; // optimism sepolia/USDC
+        providerReceive = await getValidProvider(loadedConfig.networks[toNetworkId], true);
+        if (providerReceive === null) throw '❌ No valid RPC_URL found for network: ' + toNetworkName;
+
+		contractSendTokenAddress = testToken.tokenContractAddress;
+		contractReceiveTokenAddress = testToken.toTokenContractAddress;
         contractSend = new ethers.Contract(contractSendTokenAddress, abi, providerSend);
         contractReceive = new ethers.Contract(contractReceiveTokenAddress, abi, providerReceive);
 
-        try {
-            contract_decimals = await contractSend.decimals();
-            contract_decimals = contract_decimals.toNumber();
-        } catch(error) {
-            console.error('⚠️  Warning can not get decimals for token, set to default (6 for USDC)');
-            console.error("⚠️  Error:", error);
-        }
+		contractSendDecimals = testToken.tokenDecimals;
+		contractReceiveDecimals = testToken.toTokenDecimals;
 
 		signerReceive = testToken.listeningAddress;
 
@@ -117,7 +120,7 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 	});
 
 	describe("-- Test token " + fromNetworkName + "/" + fromTokenName + " To " + toNetworkName + "/" + toTokenName + " --", function () {
-		xit("** Test transfert token **", async function () {
+		if (userTest === 0 || userTest === 1) it("** Test transfert token **", async function () {
 			console.log("      - ** Test transfert token **");
 
             const result = await sendToken(parseFloat("1.0"));
@@ -126,11 +129,11 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
             if(result.error === 2 ) expect(true, "❌ Refund !!").to.be.false;
             if(result.error === 3 ) expect(true, "❌ No tokens received !!!").to.be.false;
 
-            console.log("✅ " + toTokenName + " received: " + ethers.utils.formatUnits(result.totReceived, contract_decimals) + ", fees: " + ethers.utils.formatUnits(result.totFees, contract_decimals));
+            console.log("✅ " + toTokenName + " received: " + ethers.utils.formatUnits(result.totReceived, contractReceiveDecimals) + ", fees: " + ethers.utils.formatUnits(result.totFees, contractSendDecimals));
 
         }).timeout(60000);
 
-        xit("** Test max token **", async function () {
+        if (userTest === 0 || userTest === 2) it("** Test max token **", async function () {
 			console.log("      - ** Test max token **");
 
             const result = await sendToken(parseFloat(testToken.max) * 2);
@@ -143,7 +146,7 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 
         }).timeout(60000);
 
-        xit("** Test min token **", async function () {
+        if (userTest === 0 || userTest === 3) it("** Test min token **", async function () {
 			console.log("      - ** Test min token **");
 
             const result = await sendToken(parseFloat(testToken.min));
@@ -156,7 +159,7 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 
         }).timeout(60000);
 
-		xit("** Test minNoRefund token **", async function () {
+		if (userTest === 0 || userTest === 4) it("** Test minNoRefund token **", async function () {
 			console.log("      - ** Test minNoRefund token **");
 
             const result = await sendToken(parseFloat(testToken.minNoRefund));
@@ -177,8 +180,8 @@ async function sendToken(amount) {
     //console.log("-- sendToken --");
     let convertAmount = amount * testToken.conversionRateTokenBC1toTokenBC2; // Convertion rate
 
-    const initial_balance_of_emit_token_wei = ethers.utils.parseEther(ethers.utils.formatUnits(initial_balance_of_emit_token, contract_decimals));
-    const initial_balance_of_receiver_wei = ethers.utils.parseEther(ethers.utils.formatUnits(initial_balance_of_receiver, contract_decimals));
+    const initial_balance_of_emit_token_wei = ethers.utils.parseEther(ethers.utils.formatUnits(initial_balance_of_emit_token, contractSendDecimals));
+    const initial_balance_of_receiver_wei = ethers.utils.parseEther(ethers.utils.formatUnits(initial_balance_of_receiver, contractReceiveDecimals));
 
     // check token balances
     expect(initial_balance_of_emit_token_wei.gt(ethers.utils.parseEther(amount.toString())), "❌ Sender not enough tokens !").to.be.true;
@@ -187,7 +190,7 @@ async function sendToken(amount) {
 
     console.log("Sending: "+ amount.toString() + " " + fromTokenName + ", Receive: " + convertAmount.toString() + " " + toTokenName + " ...");
 
-    const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, ethers.utils.parseUnits(amount.toString(),contract_decimals));
+    const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, ethers.utils.parseUnits(amount.toString(),contractSendDecimals));
     console.log("transactionTx: ", transactionTx.hash);
     console.log("Waiting transaction");
     await transactionTx.wait(1); // error on wait(1) => change rpc_url
@@ -212,8 +215,8 @@ async function sendToken(amount) {
     console.log("");
 
     let totReceived = new_balance_of_receive_token - initial_balance_of_receive_token;
-    totReceived = ethers.utils.parseUnits(ethers.utils.formatUnits(totReceived, contract_decimals), contract_decimals);
-    convertAmount = ethers.utils.parseUnits(convertAmount.toString(), contract_decimals);
+    totReceived = ethers.utils.parseUnits(ethers.utils.formatUnits(totReceived.toString(), contractReceiveDecimals), contractReceiveDecimals);
+    convertAmount = ethers.utils.parseUnits(convertAmount.toString(), contractReceiveDecimals);
     const totFees = convertAmount.sub(totReceived);
 
     result = {};
@@ -262,6 +265,75 @@ function findTokenByName(tokenList, networkName, fromToken, toToken) {
 		}
 	}
 	return null;
+}
+
+// get valid provider for network
+// _network: network object from config
+// noApi: try to use provider with api key if false
+// return: provider object or null on error
+async function getValidProvider(_network, noApi) {
+    let providerUrl = null;
+    let networkUrlList = _network.RPC_URLs;
+    let _networkName = _network.networkName;
+    let _chainId = _network.chainId;
+
+    for (let i = 0; i < networkUrlList.length; i++) {
+        try {
+            providerUrl = null;
+            let url = networkUrlList[i].rpcurl;
+            if(noApi && networkUrlList[i].apikey !== "") continue;
+            let _apiKey = networkUrlList[i].apikey !== ""?process.env[networkUrlList[i].apikey]:"";
+
+            switch (networkUrlList[i].type) {
+                case 'ETHERSCAN':
+                    providerUrl = new ethers.providers.EtherscanProvider(_chainId, _apiKey);
+                    break;
+                case 'INFURA':
+                    providerUrl = new ethers.providers.InfuraProvider(_chainId, _apiKey);
+                    break;
+                case 'STATIC':
+                    providerUrl = new ethers.providers.StaticJsonRpcProvider({ url: url + _apiKey, timeout: 20000 });
+                    break;
+                case '':
+                default:
+                    providerUrl = new ethers.providers.JsonRpcProvider({ url: url + _apiKey, timeout: 20000 });
+            }
+            if (providerUrl === null || providerUrl === undefined) continue;
+
+            // Check chainId
+            try {
+                const chainId = parseInt(await providerUrl.send("eth_chainId", []),16);
+                if (chainId !== _chainId) {
+                    console.error("⚠️ Warning invalid provider chainId for " + _networkName + " chainId found:" + chainId + ", config:" + _chainId);
+                    providerUrl = null;
+                    continue;
+                }
+            } catch (error) {
+                providerUrl = null;
+                if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
+                    continue;
+                }
+                if (error.code === "SERVER_ERROR") {
+                    if (error.body !== undefined && error.body !== null) {
+                        let errBody = JSON.parse(error.body);
+                        console.error("⚠️ Error getValidProvider (" + url + "): ", errBody.error.message);
+                    }
+                    else console.error("⚠️ Error getValidProvider (" + url + "): ", error);
+                    continue;
+                }
+                console.error("❌ Error getValidProvider on: ", _networkName);
+                console.error("❌ Error getValidProvider (eth_chainId): ", error);
+                continue;
+            }
+
+            return providerUrl;
+        } catch (error) {
+            console.error("❌ Error getValidProvider: ", error);
+            continue;
+        }
+    }
+    console.error("❌ Error getValidProvider, no valid provider found !");
+    return null;
 }
 
 // sleep time expects milliseconds

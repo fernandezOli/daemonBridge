@@ -15,16 +15,6 @@
 				"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
 				"type": "",
 				"apikey": ""
-			},
-			{
-				"rpcurl": "https://api-sepolia.etherscan.io/api/",
-				"type": "ETHERSCAN",
-				"apikey": "ETHERSCAN_API_KEY"
-			},
-			{
-				"rpcurl": "https://sepolia.infura.io/v3/",
-				"type": "INFURA",
-				"apikey": "INFURA_API_KEY"
 			}
 		],
 		"nativeTokens": [
@@ -52,6 +42,7 @@
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"tokenName": "LINK",
+				"tokenDecimals": 18,
 				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
 				"min": "0.0005",
@@ -65,6 +56,7 @@
                 "toNetworkChainId": 11155420,
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
 				"toToken": "LINK",
+				"toTokenDecimals": 18,
 				"calcGasCostOnBC2": false,
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			}
@@ -73,10 +65,11 @@
 	"networks": [
 		{
 			"networkName": "Optimism Sepolia",
-			"networkLongName": "Optimism Sepolia (testnet)",
+			"networkLongName": "OP Sepolia Testnet",
 			"symbol": "ETH",
 			"chainId": 11155420,
 			"testnet": true,
+            "decimals": 18,
 			"RPC_URLs": [
 				{
 					"rpcurl": "https://sepolia.optimism.io",
@@ -84,6 +77,27 @@
 					"apikey": ""
 				}
 			]
+		},
+		{
+            "activated": true,
+			"networkName": "Sepolia",
+			"networkLongName": "Ethereum Sepolia Testnet",
+			"symbol": "ETH",
+			"chainId": 11155111,
+			"testnet": true,
+            "decimals": 18,
+			"RPC_URLs": [
+                {
+                    "rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
+                    "type": "",
+                    "apikey": ""
+                },
+                {
+                    "rpcurl": "https://rpc2.sepolia.org",
+                    "type": "",
+                    "apikey": ""
+                }
+            ]
 		}
 	]
 }
