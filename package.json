@@ -1,6 +1,6 @@
 {
   "name": "daemon-bridge",
-  "version": "0.1.0-mono-alpha",
+  "version": "0.1.1-mono",
   "description": "Daemon for bridge.",
   "author": "Olivier F. and Julien B.",
   "license": "MIT",

@@ -165,8 +165,8 @@
 				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
-				"activated": false,
-				"listeningAddress": "<sepolia_swap>",
+				"activated": true,
+				"listeningAddress": "0x6606dB68735D3cbD616B3455aA0481B766aDB926",
 				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
 				"tokenContractAddress": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
 				"tokenName": "USDC",
@@ -176,7 +176,7 @@
 				"min": "0.01",
 				"max": "10.0",
 				"fixedFees": "0.001",
-				"feesPcent": 0.01,
+				"feesPcent": 0,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "Sepolia_swap_PRIVATE_KEY",
@@ -189,8 +189,8 @@
 				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
-				"activated": false,
-				"listeningAddress": "<sepolia_swap>",
+				"activated": true,
+				"listeningAddress": "0x6606dB68735D3cbD616B3455aA0481B766aDB926",
 				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
 				"tokenContractAddress": "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
 				"tokenName": "EURC",
@@ -200,7 +200,7 @@
 				"min": "0.01",
 				"max": "10.0",
 				"fixedFees": "0.001",
-				"feesPcent": 0.01,
+				"feesPcent": 0,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
 				"toPrivateKey": "Sepolia_swap_PRIVATE_KEY",

@@ -186,6 +186,17 @@ For define a token to token bridge:
 }
 ```
 
+## Unsupported tokens
+The standard bridge does not support certain ERC-20 configurations:
+Fee on Transfer
+Upgradable Tokens
+Tokens with Blocklists
+Pausable Tokens
+
+## unfully supported tokens
+Low Decimals
+High Decimals
+
 ## Listening tokens
 
 Listening tokens on listening network are define in config file:

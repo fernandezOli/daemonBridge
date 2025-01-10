@@ -1,28 +1,24 @@
 const { ethers, BigNumber } = require('ethers');
 require("dotenv").config();
 const deasync = require('deasync');
-const nodemailer = require('nodemailer');
 const fs = require("fs");
 
-const transferABI = [
-	"function balanceOf(address) view returns(uint)",
-	"function transfer(address to, uint amount) returns(bool)",
-    "function decimals() view returns (uint256)"
-];
+const transferABI = require('./daemonABI');
+const Status = require('./daemonStatus');
 
-const Status = { NONE: "NONE", STARTING: "STARTING", WAITING: "WAITING", SLEEPING: "SLEEPING", RUNNING: "RUNNING", FAIL: "FAIL" };
-
-let initialConfig = null;
-let networkList = null;
+const nodemailer = require('nodemailer');
 
 module.exports = class daemon {
+    _version = "0.1.1";
+    _defaultConfigFile = './config/config.json';
+    _initialConfig = null;
+    _networkList = null;
 	_listeningNetworkProvider = null;
 	_networkProvider = [];
 	_nativeListeners = [];
 	_tokensList = null;
 	_mailTransporter = null;
     _status = Status.NONE;
-    _defaultConfigFile = './config/config.json';
 
 	constructor(configFile) {
 		//console.log("-- loading daemon--");
@@ -30,7 +26,7 @@ module.exports = class daemon {
 		try {
 			this._status = Status.STARTING;
             this.loadConfigFile(configFile);
-            if (initialConfig === null || networkList === null) { this._status = Status.FAIL; throw 'Invalid configuration file, abort !'; }
+            if (this._initialConfig === null || this._networkList === null) { this._status = Status.FAIL; throw 'Invalid configuration file, abort !'; }
             this.checkPrivateKeys();
 			this.initProviders();
 			this.startListening();
@@ -50,8 +46,8 @@ module.exports = class daemon {
             if (configFile === undefined || configFile === null || configFile === "") {
                 console.log("⚠️ loading default configuration");
                 const _config = JSON.parse(fs.readFileSync(this._defaultConfigFile, "utf8"));
-                initialConfig = _config;
-                networkList = _config;
+                this._initialConfig = _config;
+                this._networkList = _config;
                 return;
             }
         } catch (error) {
@@ -63,8 +59,8 @@ module.exports = class daemon {
         try {
             const _configJson = fs.readFileSync(configFile, "utf8");
             const _config = JSON.parse(_configJson);
-            initialConfig = _config;
-            networkList = _config;
+            this._initialConfig = _config;
+            this._networkList = _config;
         } catch(error) {
             console.log("❌ Error loading configuration file: "+ configFile + ", file is not valid JSON or file not exist !");
             // try to load default configuration
@@ -80,8 +76,8 @@ module.exports = class daemon {
 		let signer = null;
 
 		// native private keys
-		for (let i = 0; i < networkList.listeningNetwork.nativeTokens.length; i++) {
-			_token = networkList.listeningNetwork.nativeTokens[i];
+		for (let i = 0; i < this._networkList.listeningNetwork.nativeTokens.length; i++) {
+			_token = this._networkList.listeningNetwork.nativeTokens[i];
             if (_token.activated !== true) continue;
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
 				throw 'Invalid (null) native private key for toPrivateKey in config';
@@ -104,8 +100,8 @@ module.exports = class daemon {
 			_token.publicKey4refund = signer.address;
 		}
 		// tokens private keys
-		for (let i = 0; i < networkList.listeningNetwork.tokens.length; i++) {
-			_token = networkList.listeningNetwork.tokens[i];
+		for (let i = 0; i < this._networkList.listeningNetwork.tokens.length; i++) {
+			_token = this._networkList.listeningNetwork.tokens[i];
             if (_token.activated !== true) continue;
 			if (_token.toPrivateKey === undefined || _token.toPrivateKey === null || _token.toPrivateKey === "") {
 				throw 'Invalid token private key for toPrivateKey in config';
@@ -132,20 +128,18 @@ module.exports = class daemon {
 	// init providers for all networks
 	initProviders() {
 		//console.log("-- init Providers --");
-
-		// Init Networks
 		try {
 			this._networkProvider = [];
-			for (let i = 0; i < networkList.networks.length; i++) {
+			for (let i = 0; i < this._networkList.networks.length; i++) {
 				let validProvider;
-				(async () => validProvider = await this.getFirstValidProvider(networkList.networks[i].RPC_URLs, i).then().catch())();
+				(async () => validProvider = await this.getFirstValidProvider(this._networkList.networks[i].RPC_URLs, i).then().catch())();
 				while (validProvider === undefined) { deasync.runLoopOnce(); } // Wait result from async_function
-				if (validProvider === null) throw '❌ No valid RPC_URL found for network: ' + networkList.networks[i].networkName;
+				if (validProvider === null) throw '❌ No valid RPC_URL found for network: ' + this._networkList.networks[i].networkName;
 				this._networkProvider[i] = validProvider;
-                if(networkList.networks[i].chainId === networkList.listeningNetwork.chainId) this._listeningNetworkProvider = validProvider;
+                if(this._networkList.networks[i].chainId === this._networkList.listeningNetwork.chainId) this._listeningNetworkProvider = validProvider;
 			}
 		} catch (error) {
-			console.error('❌ ERROR initProviders [' + error.code + ']: ', error);
+			console.error('❌ ERROR initProviders (' + this._networkList.networks[i].networkName + ') [' + error.code + ']: ', error);
 			throw error;
 		}
 	}
@@ -163,8 +157,8 @@ module.exports = class daemon {
                 providerUrl = null;
 				let url = networkUrlList[i].rpcurl;
                 let _apiKey = networkUrlList[i].apikey !== ""?process.env[networkUrlList[i].apikey]:"";
-                let _networkName = networkList.networks[networkIndex].networkName;
-                let _chainId = networkList.networks[networkIndex].chainId;
+                let _networkName = this._networkList.networks[networkIndex].networkName;
+                let _chainId = this._networkList.networks[networkIndex].chainId;
 
                 // TODO: add url AND chainId for ETHERSCAN and INFURA
                 switch (networkUrlList[i].type) {
@@ -235,9 +229,9 @@ module.exports = class daemon {
 		this._listeningNetworkProvider.removeAllListeners();
 		// Native tokens
 		try {
-			if (networkList.listeningNetwork.activeNativeToken) {
+			if (this._networkList.listeningNetwork.activeNativeToken) {
 				// check if 1 or more listening
-				const nativeTokensList = networkList.listeningNetwork.nativeTokens;
+				const nativeTokensList = this._networkList.listeningNetwork.nativeTokens;
 				for (let nativeTokenIndex = 0; nativeTokenIndex < nativeTokensList.length; nativeTokenIndex++) {
 					if (nativeTokensList[nativeTokenIndex].activated !== true) continue;
 					const nativeToken = nativeTokensList[nativeTokenIndex];
@@ -245,7 +239,7 @@ module.exports = class daemon {
 					//nativeToken.toNetworkIndex = this.findNetworkByName(nativeToken.toNetwork);
                     nativeToken.toNetworkIndex = this.findNetworkByChainId(nativeToken.toNetworkChainId);
 					this._nativeListeners[nativeTokensList[nativeTokenIndex].listeningAddress] = nativeTokenIndex;
-					console.log("Start listening for " + networkList.listeningNetwork.symbol + " on " + nativeToken.listeningAddress + " to " + nativeToken.toNetwork +"/" + networkList.networks[nativeToken.toNetworkIndex].symbol);
+					console.log("Start listening for " + this._networkList.listeningNetwork.symbol + " on " + nativeToken.listeningAddress + " to " + nativeToken.toNetwork +"/" + this._networkList.networks[nativeToken.toNetworkIndex].symbol);
 				}
 				if (nativeCounter !== 0) {
 					// Scan all blocks
@@ -262,10 +256,10 @@ module.exports = class daemon {
 
 		// tokens
 		try {
-			this._tokensList = networkList.listeningNetwork.tokens;
+			this._tokensList = this._networkList.listeningNetwork.tokens;
 			for (let tokenIndex = 0; tokenIndex < this._tokensList.length; tokenIndex++) {
                 const _token = this._tokensList[tokenIndex];
-				if (initialConfig.listeningNetwork.tokens[tokenIndex].activated !== true) {
+				if (this._initialConfig.listeningNetwork.tokens[tokenIndex].activated !== true) {
 					_token.activated = false;
 					continue;
 				}
@@ -441,7 +435,7 @@ module.exports = class daemon {
 		//console.log("initialAmount: ", initialAmount);
 		//console.log("txHash: ", txHash);
 
-        const _nativeToken = networkList.listeningNetwork.nativeTokens[nativeListenerIndex];
+        const _nativeToken = this._networkList.listeningNetwork.nativeTokens[nativeListenerIndex];
 		//const networkNum = this.findNetworkByName(_nativeToken.toNetwork);
         const networkNum = this.findNetworkByChainId(_nativeToken.toNetworkChainId);
 
@@ -505,7 +499,7 @@ module.exports = class daemon {
 		//console.log("amount: ", amount);
 		//console.log("txHash: ", txHash);
 
-		const nativeTokensList = networkList.listeningNetwork.nativeTokens;
+		const nativeTokensList = this._networkList.listeningNetwork.nativeTokens;
 		const _provider = this._networkProvider[networkNum];
 
 		try {
@@ -536,7 +530,7 @@ module.exports = class daemon {
 		//console.log("txHash: ", txHash);
 
 		const _provider = this._listeningNetworkProvider;
-        const nativeToken = networkList.listeningNetwork.nativeTokens[nativeTokenIndex];
+        const nativeToken = this._networkList.listeningNetwork.nativeTokens[nativeTokenIndex];
 
         try {
 			const signer = new ethers.Wallet(process.env[nativeToken.privateKey4refund], _provider);
@@ -571,7 +565,7 @@ module.exports = class daemon {
 
         try {
             const _provider = this._networkProvider[networkNum];
-            const _token = networkList.listeningNetwork.nativeTokens[nativeTokenIndex];
+            const _token = this._networkList.listeningNetwork.nativeTokens[nativeTokenIndex];
             const signer = new ethers.Wallet(process.env[_token.toPrivateKey], _provider);
             const nativeBalance = await _provider.getBalance(signer.address); // native token balance
 
@@ -884,7 +878,7 @@ module.exports = class daemon {
 	// get networkName for html
 	getNetworkName() {
 		//console.log("--- getNetworkName ---");
-		return networkList.listeningNetwork.networkName;
+		return this._networkList.listeningNetwork.networkName;
 	}
 
 	// make json for html request
@@ -899,15 +893,14 @@ module.exports = class daemon {
 
 		try {
 			json4http.general = {};
-			json4http.general = { ...networkList.general};
+			json4http.general = { ...this._networkList.general};
 			json4http.general["http_port"] = httpServerPort;
-            json4http["networks"] = { ...networkList.networks};
-
-			json4http["listeningNetwork"] = { ...networkList.listeningNetwork};
+            json4http["networks"] = { ...this._networkList.networks};
+			json4http["listeningNetwork"] = { ...this._networkList.listeningNetwork};
             // Native
             delete json4http.listeningNetwork.nativeTokens;
             resultTokensList = [];
-            const nativeToken = networkList.listeningNetwork.nativeTokens;
+            const nativeToken = this._networkList.listeningNetwork.nativeTokens;
 			for (let i = 0; i < nativeToken.length; i++) {
 				if (nativeToken[i].activated !== true) continue;
 				const count = resultTokensList.push({ ...nativeToken[i]});
@@ -950,8 +943,8 @@ module.exports = class daemon {
 	// return: network index in network list or null on error
 	findNetworkByName(networkName) {
 		//console.log("-- findNetworkByName --");
-		for (let i = 0; i < networkList.networks.length; i++) {
-			if (networkList.networks[i].networkName.toLowerCase() === networkName.toLowerCase()) {
+		for (let i = 0; i < this._networkList.networks.length; i++) {
+			if (this._networkList.networks[i].networkName.toLowerCase() === networkName.toLowerCase()) {
 				return i;
 			}
 		}
@@ -963,8 +956,8 @@ module.exports = class daemon {
 	// return: network index in network list or null on error
 	findNetworkByChainId(chainId) {
 		//console.log("-- findNetworkByChainId --");
-		for (let i = 0; i < networkList.networks.length; i++) {
-			if (networkList.networks[i].chainId === chainId) {
+		for (let i = 0; i < this._networkList.networks.length; i++) {
+			if (this._networkList.networks[i].chainId === chainId) {
 				return i;
 			}
 		}
@@ -981,7 +974,7 @@ module.exports = class daemon {
 		//console.log("addressListener: ",addressListener);
 		//console.log("addressContract: ",addressContract.length);
 
-        let _listTokens = networkList.listeningNetwork.tokens;
+        let _listTokens = this._networkList.listeningNetwork.tokens;
 		for (let i = 0; i < _listTokens.length; i++) {
 		    console.log("findTokenByListener[listeningAddress[i]]: ",_listTokens[i].listeningAddress);
             if (_listTokens[i].listeningAddress.toLowerCase() === addressListener.toLowerCase() && _listTokens[i].tokenContractAddress.toLowerCase() === addressContract.toLowerCase()) {

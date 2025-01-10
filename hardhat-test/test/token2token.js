@@ -4,9 +4,9 @@ const { expect } = require("chai");
 
 const daemonAddress = "http://localhost:3001/";
 const fromNetworkName = "Sepolia";
-const toNetworkName = "Optimism Sepolia";
-const fromTokenName = "LINK";
-const toTokenName = "LINK";
+const toNetworkName = "Sepolia";
+const fromTokenName = "EURC";
+const toTokenName = "USDC";
 let userTest = 1; // 0 - all tests, 1 - transfert test only, 2 - max test only, 3 - min test only, 4 - minNoRefund test only, 5 - no tests
 
 const abi = [
