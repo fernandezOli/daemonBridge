@@ -20,8 +20,8 @@
 		"nativeTokens": [
 			{
 				"activated": true,
-				"listeningAddress": "<listener_address>",
-				"privateKey4refund": "<private_key_for_refund_define_in_dot_env>",
+				"listeningAddress": "0x9747098f57D9D7994fe416e4160F2aD1D15F2a99",
+				"privateKey4refund": "Sepolia_PRIVATE_KEY",
 				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
 				"min": "0.0005",
@@ -30,16 +30,16 @@
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"calcGasCostOnBC2": false,
-				"toPrivateKey": "<private_key_for_payment_define_in_dot_env>",
+				"toPrivateKey": "Sepolia_PRIVATE_KEY",
 				"toNetwork": "Optimism Sepolia",
-                "toNetworkChainId": 11155420
+				"toNetworkChainId": 11155420
 			}
 		],
 		"tokens": [
 			{
 				"activated": true,
-				"listeningAddress": "<listener_address>",
-				"privateKey4refund": "<private_key_for_refund_define_in_dot_env>",
+				"listeningAddress": "0x9747098f57D9D7994fe416e4160F2aD1D15F2a99",
+				"privateKey4refund": "Sepolia_PRIVATE_KEY",
 				"tokenContractAddress": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
 				"tokenName": "LINK",
 				"tokenDecimals": 18,
@@ -51,9 +51,9 @@
 				"feesPcent": 0.01,
 				"conversionRateBC1toBC2": 1.0,
 				"conversionRateBC1toTokenBC1": 1.0,
-				"toPrivateKey": "<private_key_for_payment_define_in_dot_env>",
+				"toPrivateKey": "Sepolia_PRIVATE_KEY",
 				"toNetwork": "Optimism Sepolia",
-                "toNetworkChainId": 11155420,
+				"toNetworkChainId": 11155420,
 				"toTokenContractAddress": "0xE4aB69C077896252FAFBD49EFD26B5D171A32410",
 				"toToken": "LINK",
 				"toTokenDecimals": 18,
@@ -69,7 +69,7 @@
 			"symbol": "ETH",
 			"chainId": 11155420,
 			"testnet": true,
-            "decimals": 18,
+			"decimals": 18,
 			"RPC_URLs": [
 				{
 					"rpcurl": "https://sepolia.optimism.io",
@@ -79,25 +79,25 @@
 			]
 		},
 		{
-            "activated": true,
+			"activated": true,
 			"networkName": "Sepolia",
 			"networkLongName": "Ethereum Sepolia Testnet",
 			"symbol": "ETH",
 			"chainId": 11155111,
 			"testnet": true,
-            "decimals": 18,
+			"decimals": 18,
 			"RPC_URLs": [
-                {
-                    "rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
-                    "type": "",
-                    "apikey": ""
-                },
-                {
-                    "rpcurl": "https://rpc2.sepolia.org",
-                    "type": "",
-                    "apikey": ""
-                }
-            ]
+				{
+					"rpcurl": "https://ethereum-sepolia-rpc.publicnode.com",
+					"type": "",
+					"apikey": ""
+				},
+				{
+					"rpcurl": "https://rpc2.sepolia.org",
+					"type": "",
+					"apikey": ""
+				}
+			]
 		}
 	]
 }
