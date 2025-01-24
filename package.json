@@ -25,7 +25,7 @@
     "daemon2": "node daemonBridge.js -p:3102 -c:./config/sepolia_min.json",
     "daemon3": "node daemonBridge.js -p:3103 -c:./config/sepolia_min.json",
     "daemon4": "node daemonBridge.js -p:3104 -c:./config/sepolia_min.json",
-    "julien": "node daemonBridge.js -p:3001 -c:./config/julien.json"
+    "kingston": "node daemonBridge.js -p:3002 -c:./config/kingston.json"
   },
   "browserslist": {
     "production": [
