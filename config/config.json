@@ -19,15 +19,16 @@
 		],
 		"nativeTokens": [
 			{
+				"REM": "sepolia/ETH -> optimism sepolia/ETH",
 				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
 				"gasCostOnRefund": false,
 				"minNoRefund": "0.0001",
-				"min": "0.0005",
-				"max": "2.0",
-				"fixedFees": "0.0001",
-				"feesPcent": 0.01,
+				"min": "0.01",
+				"max": "3.0",
+				"fixedFees": "0.001",
+				"feesPcent": 0.0,
 				"conversionRateBC1toBC2": 1.0,
 				"calcGasCostOnBC2": false,
 				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
@@ -35,6 +36,7 @@
                 "toNetworkChainId": 11155420
 			},
 			{
+				"REM": "sepolia/ETH -> Arbitrum sepolia/ETH",
 				"activated": true,
 				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
 				"privateKey4refund": "ARSepolia_LINK_REFUND",
@@ -51,6 +53,7 @@
                 "toNetworkChainId": 421614
 			},
 			{
+				"REM": "sepolia/ETH -> Base sepolia/ETH",
 				"activated": true,
 				"listeningAddress": "0xF3842962562138C466649B19dEfc3C305af6BA64",
 				"privateKey4refund": "BASepolia_LINK_REFUND",
@@ -65,10 +68,33 @@
 				"toPrivateKey": "BASepolia_PRIVATE_KEY",
 				"toNetwork": "Base Sepolia",
                 "toNetworkChainId": 84532
+			},
+			{
+				"REM": "sepolia/ETH -> Optimism sepolia/USDC",
+				"activated": true,
+				"listeningAddress": "0x6606dB68735D3cbD616B3455aA0481B766aDB926",
+				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.0001",
+				"min": "0.0005",
+				"max": "2.0",
+				"fixedFees": "0",
+				"feesPcent": 0,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
+				"toPrivateKey": "Sepolia_swap_PRIVATE_KEY",
+				"toNetwork": "Optimism Sepolia",
+                "toNetworkChainId": 11155420,
+				"toTokenContractAddress": "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
+				"toToken": "USDC",
+				"toTokenDecimals": 6,
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 10.0
 			}
 		],
 		"tokens": [
 			{
+				"REM": "sepolia/LINK -> Optimism sepolia/LINK",
 				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
@@ -93,6 +119,7 @@
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
 			{
+				"REM": "sepolia/LINK -> Arbitrum sepolia/LINK",
 				"activated": true,
 				"listeningAddress": "0x71f7aaB7f69a4Cc5509903C2585FC84ecaba5485",
 				"privateKey4refund": "ARSepolia_LINK_REFUND",
@@ -117,6 +144,7 @@
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
 			{
+				"REM": "sepolia/LINK -> Base sepolia/LINK",
 				"activated": true,
 				"listeningAddress": "0xF3842962562138C466649B19dEfc3C305af6BA64",
 				"privateKey4refund": "BASepolia_LINK_REFUND",
@@ -141,6 +169,7 @@
 				"conversionRateTokenBC1toTokenBC2": 0.1
 			},
 			{
+				"REM": "sepolia/USDC -> Optimism sepolia/USDC",
 				"activated": true,
 				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
 				"privateKey4refund": "OPSepolia_LINK_REFUND",
@@ -165,6 +194,30 @@
 				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
+				"REM": "sepolia/EURC -> Optimism sepolia/ETH",
+				"activated": true,
+				"listeningAddress": "0x962aC815B1249027Cfd80D6b0476C9090B5aeF39",
+				"privateKey4refund": "OPSepolia_LINK_REFUND",
+				"tokenContractAddress": "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
+				"tokenName": "EURC",
+				"tokenDecimals": 6,
+				"gasCostOnRefund": false,
+				"minNoRefund": "0.001",
+				"min": "0.01",
+				"max": "10.0",
+				"fixedFees": "0.001",
+				"feesPcent": 0.0,
+				"conversionRateBC1toBC2": 1.0,
+				"conversionRateBC1toTokenBC1": 1.0,
+				"toPrivateKey": "OPSepolia_PRIVATE_KEY",
+				"toNetwork": "Optimism Sepolia",
+                "toNetworkChainId": 11155420,
+				"toTokenDecimals": 18,
+				"calcGasCostOnBC2": false,
+				"conversionRateTokenBC1toTokenBC2": 1.0
+			},
+			{
+				"REM": "sepolia/USDC -> sepolia/EURC",
 				"activated": true,
 				"listeningAddress": "0x6606dB68735D3cbD616B3455aA0481B766aDB926",
 				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
@@ -189,6 +242,7 @@
 				"conversionRateTokenBC1toTokenBC2": 1.0
 			},
 			{
+				"REM": "sepolia/EURC -> sepolia/USDC",
 				"activated": true,
 				"listeningAddress": "0x6606dB68735D3cbD616B3455aA0481B766aDB926",
 				"privateKey4refund": "Sepolia_swap_PRIVATE_KEY",
@@ -255,6 +309,16 @@
 			"testnet": true,
             "decimals": 18,
 			"RPC_URLs": [
+				{
+					"rpcurl": "https://endpoints.omniatech.io/v1/arbitrum/sepolia/public",
+					"type": "",
+					"apikey": ""
+                },
+				{
+					"rpcurl": "https://arbitrum-sepolia-rpc.publicnode.com",
+					"type": "",
+					"apikey": ""
+                },
 				{
 					"rpcurl": "https://api.zan.top/arb-sepolia",
 					"type": "",

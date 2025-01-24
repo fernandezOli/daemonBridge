@@ -169,11 +169,11 @@ module.exports = class daemon {
 						providerUrl = new ethers.providers.InfuraProvider(_chainId, _apiKey);
                         break;
                     case 'STATIC':
-                        providerUrl = new ethers.providers.StaticJsonRpcProvider({ url: url + _apiKey, timeout: 20000 });
+                        providerUrl = new ethers.providers.StaticJsonRpcProvider({ url: url + _apiKey, timeout: 30000 });
                         break;
                     case '':
                     default:
-                        providerUrl = new ethers.providers.JsonRpcProvider({ url: url + _apiKey, timeout: 20000 });
+                        providerUrl = new ethers.providers.JsonRpcProvider({ url: url + _apiKey, timeout: 30000 });
                 }
                 if (providerUrl === null || providerUrl === undefined) continue;
 
@@ -236,10 +236,11 @@ module.exports = class daemon {
 					if (nativeTokensList[nativeTokenIndex].activated !== true) continue;
 					const nativeToken = nativeTokensList[nativeTokenIndex];
 					nativeCounter++;
-					//nativeToken.toNetworkIndex = this.findNetworkByName(nativeToken.toNetwork);
                     nativeToken.toNetworkIndex = this.findNetworkByChainId(nativeToken.toNetworkChainId);
 					this._nativeListeners[nativeTokensList[nativeTokenIndex].listeningAddress] = nativeTokenIndex;
-					console.log("Start listening for " + this._networkList.listeningNetwork.symbol + " on " + nativeToken.listeningAddress + " to " + nativeToken.toNetwork +"/" + this._networkList.networks[nativeToken.toNetworkIndex].symbol);
+                    if (nativeToken.toToken !== undefined)
+					    console.log("Start listening for " + this._networkList.listeningNetwork.symbol + " on " + nativeToken.listeningAddress + " to " + nativeToken.toNetwork +"/" + nativeToken.toToken);
+					else console.log("Start listening for " + this._networkList.listeningNetwork.symbol + " on " + nativeToken.listeningAddress + " to " + nativeToken.toNetwork +"/" + this._networkList.networks[nativeToken.toNetworkIndex].symbol);
 				}
 				if (nativeCounter !== 0) {
 					// Scan all blocks
@@ -271,7 +272,6 @@ module.exports = class daemon {
 					continue;
 				}
 				_token.activated = true;
-				//_token.toNetworkIndex = this.findNetworkByName(_token.toNetwork);
                 _token.toNetworkIndex = this.findNetworkByChainId(_token.toNetworkChainId);
 
 				const filter = {
@@ -282,7 +282,10 @@ module.exports = class daemon {
 				const _index = tokenIndex;
 				this._listeningNetworkProvider.on(filter, (log) => { this.parseEvent(log, _index); });
 				tokenCounter++;
-				console.log("Start listening for token " + _token.tokenName + " on " + _token.listeningAddress + " to " + _token.toNetwork + "/" + _token.toToken);
+
+                if (_token.toToken !== undefined)
+                    console.log("Start listening for token " + _token.tokenName + " on " + _token.listeningAddress + " to " + _token.toNetwork + "/" + _token.toToken);
+                else console.log("Start listening for token " + _token.tokenName + " on " + _token.listeningAddress + " to " + _token.toNetwork + "/" + this._networkList.networks[_token.toNetworkIndex].symbol);
 			}
 			if(tokenCounter === 0) console.log("- No listening for tokens -");
 		} catch (error) {
@@ -337,7 +340,12 @@ module.exports = class daemon {
 				nativeBalance = await _provider.getBalance(signer.address); // native balance for payement
 				_token.toNativeBalance = ethers.utils.formatEther(nativeBalance);
 
-				const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
+                if (_token.toTokenContractAddress === undefined) {
+                    _token.toTokenBalance = _token.toNativeBalance;
+                    continue;
+                }
+
+                const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
 				const tokenBalance = await contract.balanceOf(signer.address); // token balance for payement
 				_token.toTokenBalance = ethers.utils.formatEther(tokenBalance);
                 // Get decimals and convert token balance to wei with decimals
@@ -384,6 +392,52 @@ module.exports = class daemon {
 		}
 	}
 
+	// Send coin to the sender
+	// networkNum: index of the destination network in network list
+	// token: token object
+	// from: sender address
+	// amount: amount to send
+    // initialAmount: amount to send on refund
+	// txHash: sender transaction Hash
+	send(networkNum, token, from, convertAmount, initialAmount, txHash) {
+		//console.log("-- send --");
+
+        try {
+            if (token.toTokenContractAddress !== undefined) {
+                //convertAmount = BigNumber.from((parseFloat(convertAmount.toBigInt()) * _nativeToken.conversionRateTokenBC1toTokenBC2).toString());
+			    this.sendToken(networkNum, token, from, convertAmount, initialAmount, txHash);
+            }
+			else this.sendNative(networkNum, token, from, convertAmount, initialAmount, txHash)
+		} catch (error) {
+			console.error('❌ ERROR send [' + error.code + ']: ', error);
+            // todo: refund
+			throw error;
+		}
+	}
+
+	// refund coin to the sender
+    // token: token object
+	// from: address sender
+	// amount: amount to send
+	// txHash: sender transaction Hash
+	refund(token, from, amount, txHash) {
+		//console.log("-- refund --");
+
+        try {
+            if (ethers.utils.parseEther(token.minNoRefund).gte(amount)) {
+                console.log("[NoRefund]Invalid amount, less than No Refund amount");
+                return;
+            }
+            if (token.tokenContractAddress !== undefined) {
+                this.refundToken(token, from, amount, txHash);
+            }
+            else this.refundNative(token, from, amount, txHash);
+        } catch (error) {
+			console.error('❌ ERROR refund [' + error.code + ']: ', error);
+			throw error;
+		}
+	}
+
 	//**********************
 	//**** Native Token ****
 	//**********************
@@ -402,22 +456,19 @@ module.exports = class daemon {
 			result = await this._listeningNetworkProvider.getBlockWithTransactions(blockNumber);
 
 			for (let i = 0; i < result.transactions.length; i++) {
+                nativeListenerIndex = null;
 				resultTx = result.transactions[i];
 				if (resultTx.from === undefined || resultTx.from === null) continue;
 				if (resultTx.to === undefined || resultTx.to === null) continue;
-				if (parseInt(resultTx.value._hex, 16) === 0) continue; // value = 0
-
-				// check if listeningAddress [to] is known
-				if (this._nativeListeners[resultTx.to] === undefined) continue;
-
+				if (parseInt(resultTx.value._hex, 16) === 0) continue; // amount = 0
+				if (this._nativeListeners[resultTx.to] === undefined) continue; // check if listeningAddress [to] is known
 				nativeListenerIndex = this._nativeListeners[resultTx.to];
 				this.execTransaction(nativeListenerIndex, resultTx.from, resultTx.value, resultTx.hash);
-                nativeListenerIndex = null;
 			}
 		} catch (error) {
 			console.error('Error parseBlock [' + error.code + ']: ', error);
 			if ((resultTx !== null && nativeListenerIndex !== null))
-				this.refundNativeToken(nativeListenerIndex, resultTx.from, resultTx.value, resultTx.hash);
+				this.refund(this._networkList.listeningNetwork.nativeTokens[nativeListenerIndex], resultTx.from, resultTx.value, resultTx.hash);
 			return;
 		}
 	}
@@ -429,25 +480,22 @@ module.exports = class daemon {
 	// initialAmount: amount to send on refund
 	// txHash: sender transaction Hash
 	async execTransaction(nativeListenerIndex, from, initialAmount, txHash) {
-		console.log("-- execTransaction --");
-		//console.log("nativeListenerIndex: ", nativeListenerIndex);
-		//console.log("from: ", from);
-		//console.log("initialAmount: ", initialAmount);
-		//console.log("txHash: ", txHash);
+		//console.log("-- execTransaction --");
+		//console.log("[execTransaction]nativeListenerIndex: ", nativeListenerIndex);
+		//console.log("[execTransaction]from: ", from);
+		//console.log("[execTransaction]initialAmount: ", initialAmount);
+		console.log("[ETH received]txHash: ", txHash);
 
+        if (!await this.waitTransaction(txHash)) return; // Transaction was reverted
         const _nativeToken = this._networkList.listeningNetwork.nativeTokens[nativeListenerIndex];
-		//const networkNum = this.findNetworkByName(_nativeToken.toNetwork);
         const networkNum = this.findNetworkByChainId(_nativeToken.toNetworkChainId);
+        const _provider = this._networkProvider[networkNum];
 
 		try {
             // Check min
             if (ethers.utils.parseEther(_nativeToken.min).gt(initialAmount)) {
-				if (ethers.utils.parseEther(_nativeToken.minNoRefund).gte(initialAmount)) {
-					console.log("[execTransaction]Invalid amount, less than No Refund amount");
-					return;
-				}
                 console.log("[execTransaction]Invalid amount, less than minimum amount");
-				this.refundNativeToken(nativeListenerIndex, from, initialAmount, txHash);
+				this.refund(_nativeToken, from, initialAmount, txHash);
 				return;
             }
 
@@ -459,97 +507,100 @@ module.exports = class daemon {
                 let destinationTxFee = await this.calcGasCost(_provider, false);
                 // conversion BC2 (dest) to BC1 (src)
                 destinationTxFee = BigNumber.from((parseFloat(destinationTxFee.toBigInt()) * (1 / _nativeToken.conversionRateBC1toBC2)).toString());
+                //todo: BC2 to token BC1
+                if (_nativeToken.toTokenContractAddress !== undefined)
+                    destinationTxFee = BigNumber.from((parseFloat(destinationTxFee.toBigInt()) * _nativeToken.conversionRateBC1toTokenBC1).toString());
                 amount = amount.sub(destinationTxFee);
             }
 
-            // Convert to native in BC2
+            // Convert to native or token in BC2
             let convertAmount = BigNumber.from((parseFloat(amount.toBigInt()) * _nativeToken.conversionRateBC1toBC2).toString());
+            if (_nativeToken.toTokenContractAddress !== undefined)
+                convertAmount = BigNumber.from((parseFloat(amount.toBigInt()) * _nativeToken.conversionRateTokenBC1toTokenBC2).toString());
 
 			// verify data integrity
 			const [check, checkMessage] = await this.checkNativeData(networkNum, nativeListenerIndex, amount);
 			if (check === false) {
 				console.log("Error DataCheck Message: ", checkMessage);
-				if (ethers.utils.parseEther(_nativeToken.minNoRefund).gt(initialAmount)) {
-					console.log("[NoRefund]Invalid amount, less than No Refund amount");
-					return;
-				}
-				this.refundNativeToken(nativeListenerIndex, from, initialAmount, txHash);
+				this.refund(_nativeToken, from, initialAmount, txHash);
 				return;
 			}
 
-			this.sendNativeToken(networkNum, nativeListenerIndex, from, convertAmount, initialAmount, txHash)
+            this.send(networkNum, _nativeToken, from, convertAmount, initialAmount, txHash);
 		} catch (error) {
 			console.error('Error execTransaction [' + error.code + ']: ', error);
-			this.refundNativeToken(nativeListenerIndex, from, initialAmount, txHash);
+			this.refund(_nativeToken, from, initialAmount, txHash);
 		}
 	}
 
-	// Send token in BC2 to the sender
+	// Send native token in BC2 to the sender
 	// networkNum: index of the destination network in network list
-	// nativeTokenIndex: native token index
+	// nativeToken: native token object
 	// from: address sender
 	// amount: amount to send
-	// initialAmount: amount to send on refund
+    // initialAmount: amount to send on refund
 	// txHash: sender transaction Hash
-	async sendNativeToken(networkNum, nativeTokenIndex, from, amount, initialAmount, txHash) {
-		//console.log("-- sendNativeToken --");
+	async sendNative(networkNum, nativeToken, from, amount, initialAmount, txHash) {
+		//console.log("-- sendNative --");
 		//console.log("networkNum: ", networkNum);
-		//console.log("nativeTokenIndex: ", nativeTokenIndex);
+		//console.log("nativeToken: ", nativeToken);
 		//console.log("from: ", from);
 		//console.log("amount: ", amount);
 		//console.log("txHash: ", txHash);
 
-		const nativeTokensList = this._networkList.listeningNetwork.nativeTokens;
-		const _provider = this._networkProvider[networkNum];
-
 		try {
-			const signer = new ethers.Wallet(process.env[nativeTokensList[nativeTokenIndex].toPrivateKey], _provider);
+		    const _provider = this._networkProvider[networkNum];
+			const signer = new ethers.Wallet(process.env[nativeToken.toPrivateKey], _provider);
 
-			const tx = await signer.sendTransaction({ to: from, value: amount });
+			const nativeBalance = await _provider.getBalance(signer.address);
+			if (nativeBalance.lte(amount)) {
+				console.error('[sendNative]Insufficient funds for intrinsic transaction cost !!!');
+                this.refund(nativeToken, from, initialAmount, txHash);
+				return;
+			}
+
+            const tx = await signer.sendTransaction({ to: from, value: amount });
 			await _provider.waitForTransaction(tx.hash, 1);
 
-			console.log("[sendNativeToken]Transfert success tx: ", tx.hash);
+			console.log("[sendNative]Transfert success tx: ", tx.hash);
 			this.updateBalances();
 		} catch (error) {
-			console.error('Error sendNativeToken [' + error.code + ']: ', error);
-			this.refundNativeToken(nativeTokenIndex, from, initialAmount, txHash);
-			//this.sendMessageToAdmin('sendNativeToken', error, indexToken, from, amount);
+			console.error('Error sendNative [' + error.code + ']: ', error);
+			this.refund(nativeToken, from, initialAmount, txHash);
+			//this.sendMessageToAdmin('sendNative', error, indexToken, from, amount);
 		}
 	}
 
 	// refund function for native token
-	// nativeTokenIndex: native token index
+    // nativeToken: native token object
 	// from: address sender
 	// amount: amount to send
 	// txHash: sender transaction Hash
-	async refundNativeToken(nativeTokenIndex, from, amount, txHash) {
-		console.log("-- refundNativeToken --");
-		//console.log("nativeTokenIndex: ", nativeTokenIndex);
+	async refundNative(nativeToken, from, amount, txHash) {
+		//console.log("-- refundNative --");
+		//console.log("nativeToken: ", nativeToken);
 		//console.log("from: ", from);
 		//console.log("amount: ", amount);
 		//console.log("txHash: ", txHash);
 
-		const _provider = this._listeningNetworkProvider;
-        const nativeToken = this._networkList.listeningNetwork.nativeTokens[nativeTokenIndex];
-
         try {
+		    const _provider = this._listeningNetworkProvider;
 			const signer = new ethers.Wallet(process.env[nativeToken.privateKey4refund], _provider);
             // TODO check to see if we deduct the gas or not
-			// Check balance
-			const nativeBalance = await _provider.getBalance(signer.address); // native token balance
+			const nativeBalance = await _provider.getBalance(signer.address);
 			if (nativeBalance.lte(amount)) { // TODO get gas cost
-				console.error('[refundNativeToken]Insufficient funds for intrinsic transaction cost');
+				console.error('[refundNative]Insufficient funds for intrinsic transaction cost, no refund !!!');
 				return;
 			}
 
 			const tx = await signer.sendTransaction({ to: from, value: amount });
 			await _provider.waitForTransaction(tx.hash, 1);
 
-			console.log("[refundNativeToken]Transfert success tx: ", tx.hash);
+			console.log("[refundNative]Transfert success tx: ", tx.hash);
 			this.updateBalances();
 		} catch (error) {
-			this.sendMessageToAdmin('refundNativeToken', error, nativeTokenIndex, from, amount);
-			console.error('Error refundNativeToken [' + error.code + ']: ', error);
+			//this.sendMessageToAdmin('refundNative', error, nativeTokenIndex, from, amount);
+			console.error('Error refundNative [' + error.code + ']: ', error);
 		}
 	}
 
@@ -619,14 +670,17 @@ module.exports = class daemon {
 	// struct log: transaction log
 	// indexToken: token index
 	async parseEvent(log, indexToken) {
-		console.log("-- parseEvent --");
+		//console.log("-- parseEvent --");
 		//console.log("[parseEvent]indexToken: ", indexToken);
 		//console.log("[parseEvent]log:", log);
+		console.log("[Token received]logTx:", log.transactionHash);
 
-		let logTx = log.transactionHash;
-        let _networkNum = this._tokensList[indexToken].toNetworkIndex;
-		let _from = null;
+        if (!await this.waitTransaction(log.transactionHash)) return; // Transaction was reverted
+		const logTx = log.transactionHash;
+        const token = this._tokensList[indexToken];
+        const _networkNum = token.toNetworkIndex;
 		let initialAmount = BigNumber.from(0);
+		let _from = null;
 
 		try {
 			initialAmount = BigNumber.from(log.data);
@@ -651,7 +705,7 @@ module.exports = class daemon {
 			console.error('Error parseEvent, parse log tx:',logTx);
 			console.error('Error parseEvent, parse log error on from [' + error.code + ']:', error);
             if (_from !== undefined && _from !== null && !initialAmount.isZero()) {
-			    this.refundToken(indexToken, _from, initialAmount, logTx);
+			    this.refund(token, _from, initialAmount, logTx);
             }
             // error _from ????
 			return;
@@ -683,12 +737,8 @@ module.exports = class daemon {
 
             // Check min
             if (ethers.utils.parseEther(_token.min).gt(initialAmount)) {
-				if (ethers.utils.parseEther(_token.minNoRefund).gte(initialAmount)) {
-					console.log("[execLogTransaction]Invalid amount, less than No Refund amount");
-					return;
-				}
                 console.log("[execLogTransaction]Invalid amount, less than minimum amount");
-				this.refundToken(indexToken, _from, initialAmount, logTx);
+				this.refund(_token, _from, initialAmount, logTx);
 				return;
             }
 
@@ -705,25 +755,23 @@ module.exports = class daemon {
                 amount = amount.sub(destinationTxFee);
             }
 
-            // Convert to token in BC2
+            // Convert to native or token in BC2
             let convertAmount = BigNumber.from((parseFloat(amount.toBigInt()) * _token.conversionRateTokenBC1toTokenBC2).toString());
+            if (_token.toTokenContractAddress === undefined)
+                convertAmount = BigNumber.from((parseFloat(amount.toBigInt()) * _token.conversionRateBC1toBC2).toString());
 
 			// verify data integrity
-			const [check, checkMessage] = await this.checkData(_networkNum, indexToken, amount, convertAmount, false);
+			const [check, checkMessage] = await this.checkData(_networkNum, indexToken, amount, convertAmount, _token.toTokenContractAddress === undefined?true:false);
 			if (check === false) {
 				console.log("Error DataCheck: ", checkMessage);
-				if (ethers.utils.parseEther(_token.minNoRefund).gte(initialAmount)) {
-					console.log("[NoRefund]Invalid amount, less than No Refund amount");
-					return;
-				}
-				this.refundToken(indexToken, _from, initialAmount, logTx);
+				this.refund(_token, _from, initialAmount, logTx);
 				return;
 			}
 
-			this.sendToken(_networkNum, indexToken, _from, convertAmount, initialAmount, logTx);
+			this.send(_networkNum, _token, _from, convertAmount, initialAmount, logTx);
 		} catch (error) {
 			console.error('Error parseEvent [' + error.code + ']: ', error);
-			this.refundToken(indexToken, _from, initialAmount, logTx);
+			this.refund(_token, _from, initialAmount, logTx);
 		}
 	}
 
@@ -733,51 +781,42 @@ module.exports = class daemon {
 	// from: address sender
 	// amount: amount to send
 	// logTx: sender transaction Hash
-	async sendToken(networkNum, indexToken, from, amount, initialAmount, logTx) {
-		console.log("-- sendToken --");
-		//console.log("[sendToken]from: ", from);
-		//console.log("[sendToken]amount: ", amount);
-		//console.log("[sendToken]amount: ", ethers.utils.formatEther(amount));
-		//console.log("[sendToken]initialAmount: ", initialAmount);
-		//console.log("[sendToken]initialAmount: ", ethers.utils.formatEther(initialAmount));
-		//console.log("logTx: ", logTx);
+	async sendToken(networkNum, _token, from, amount, initialAmount, logTx) {
+		//console.log("-- sendToken --");
 
 		try {
-            const _token = this._tokensList[indexToken];
+            //const _token = this._tokensList[indexToken];
 			const signer = new ethers.Wallet(process.env[_token.toPrivateKey], this._networkProvider[networkNum]);
 			const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
 
             // convert wei to toToken decimals
             if (_token.toTokenDecimals !== 18)
-                amount = ethers.utils.parseUnits(ethers.utils.formatEther(amount), _token.toTokenDecimals); // to BigNumber
+                amount = ethers.utils.parseUnits(ethers.utils.formatEther(amount), _token.toTokenDecimals);
 
 			const tx = await contract.transfer(from, amount);
 			await this._networkProvider[networkNum].waitForTransaction(tx.hash, 1);
 
-			console.log("[sendToken]Transfert success tx: ", tx.hash);
+			console.log("[sendToken]Transfert success tx: ",tx.hash);
 			this.updateBalances();
 		} catch (error) {
-			this.refundToken(indexToken, from, initialAmount, logTx);
-			this.sendMessageToAdmin('sendToken', error, indexToken, from, amount);
+			this.refund(_token, from, initialAmount, logTx);
+			//this.sendMessageToAdmin('sendToken', error, indexToken, from, amount);
 			console.error('Error sendToken [' + error.code + ']: ', error);
 		}
 	}
 
 	// refund function
-	// indexToken: token index
+    // indexToken: token index
 	// from: address sender
 	// amount: amount to send
 	// logTx: sender transaction Hash
-	async refundToken(indexToken, from, amount, logTx) {
+	//async refundToken(indexToken, from, amount, logTx) {
+	async refundToken(_token, from, amount, logTx) {
 		//console.log("-- refundToken --");
-		//console.log("indexToken: ", indexToken);
-		//console.log("from: ", from);
-		//console.log("amount: ", amount);
-		//console.log("logTx: ", logTx);
 
 		try {
 			const _provider = this._listeningNetworkProvider;
-            const _token = this._tokensList[indexToken];
+            //const _token = this._tokensList[indexToken];
 			const signer = new ethers.Wallet(process.env[_token.privateKey4refund], _provider);
 			const contract = new ethers.Contract(_token.tokenContractAddress, transferABI, signer);
 
@@ -789,21 +828,21 @@ module.exports = class daemon {
 			const nativeBalance = await _provider.getBalance(signer.address); // native token balance
 			const tokenBalance = await contract.balanceOf(signer.address); // token balance
 			if (ethers.utils.parseEther("0.1").gt(nativeBalance)) { // TODO getgascost
-				console.error('[Refund]Insufficient funds for intrinsic transaction cost');
+				console.error('[refundToken]Insufficient funds for intrinsic transaction cost, no refund !!!');
 				return;
 			}
 			if (amount.gt(tokenBalance)) {
-				console.error('[Refund]Insufficient tokens funds for transaction');
+				console.error('[refundToken]Insufficient tokens funds for transaction !!!');
 				return;
 			}
 
 			const tx = await contract.transfer(from, amount);
 			await _provider.waitForTransaction(tx.hash, 1);
 
-			console.log("[Refund]Transfert success tx: ", tx.hash);
+			console.log("[refundToken]Transfert success tx: ", tx.hash);
 			this.updateBalances();
 		} catch (error) {
-			this.sendMessageToAdmin('refundToken', error, indexToken, from, amount);
+			//this.sendMessageToAdmin('refundToken', error, indexToken, from, amount);
 			console.error('Error (function) refundToken [' + error.code + ']: ', error);
 		}
 	}
@@ -824,24 +863,27 @@ module.exports = class daemon {
             const _provider = this._networkProvider[networkNum];
             const _token = this._tokensList[indexToken];
             const signer = new ethers.Wallet(process.env[_token.toPrivateKey], _provider);
+            let tokenBalance = BigNumber.from(0);
 
             // Check balances
             const nativeBalance = await _provider.getBalance(signer.address); // native token balance
-            const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
-            let tokenBalance = await contract.balanceOf(signer.address); // token balance
-            if (_token.toTokenDecimals !== 18) // to wei to BigNumber
-                tokenBalance = ethers.utils.parseEther(ethers.utils.formatUnits(tokenBalance, _token.toTokenDecimals));
+            if (!isNativeToken) {
+                const contract = new ethers.Contract(_token.toTokenContractAddress, transferABI, signer);
+                tokenBalance = await contract.balanceOf(signer.address); // token balance
+                if (_token.toTokenDecimals !== 18) // to wei to BigNumber
+                    tokenBalance = ethers.utils.parseEther(ethers.utils.formatUnits(tokenBalance, _token.toTokenDecimals));
+            }
 
             if (ethers.utils.parseEther("0.01").gt(nativeBalance)) { // TODO getgascost
-                return [false, "Insufficient native funds for intrinsic transaction cost"];
+                return [false, "Insufficient native funds for intrinsic transaction cost !"];
             }
             if (isNativeToken) {
                 if (convertAmount.gt(nativeBalance)) {
-                    return [false, "Insufficient native tokens funds for transaction"];
+                    return [false, "Insufficient native tokens funds for transaction !"];
                 }
             } else {
                 if (convertAmount.gt(tokenBalance)) {
-                    return [false, "Insufficient tokens funds for transaction"];
+                    return [false, "Insufficient tokens funds for transaction !"];
                 }
             }
 
@@ -938,20 +980,20 @@ module.exports = class daemon {
 	//**** Divers ****
 	//****************
 
-	// find Network by name
-	// networkName: name of the network to find
-	// return: network index in network list or null on error
-	findNetworkByName(networkName) {
-		//console.log("-- findNetworkByName --");
-		for (let i = 0; i < this._networkList.networks.length; i++) {
-			if (this._networkList.networks[i].networkName.toLowerCase() === networkName.toLowerCase()) {
-				return i;
-			}
-		}
-		return null;
-	}
+    // wait transaction
+    // return: false if transaction was reverted, true otherwise
+    async waitTransaction(transaction_hash) {
+        try {
+            const result = await this._listeningNetworkProvider.waitForTransaction(transaction_hash, 1);
+            if (result.status !== 1) return false;
+            return true;
+        } catch (error) {
+            console.error('Error waitTransaction: ', error);
+            return false;
+        }
+    }
 
-	// find Network by chainId
+    // find Network by chainId
 	// chainId: chainId of the network to find (int)
 	// return: network index in network list or null on error
 	findNetworkByChainId(chainId) {
@@ -963,27 +1005,6 @@ module.exports = class daemon {
 		}
 		return null;
 	}
-
-    /*
-	// find token index by Listener
-	// addressListener: listener address of the token to find
-	// addressContract: contract address of the token to find
-	// return: token index in tokens list or null on error
-    findTokenByListener(addressListener, addressContract) {
-		//console.log("-- findTokenByListener --");
-		//console.log("addressListener: ",addressListener);
-		//console.log("addressContract: ",addressContract.length);
-
-        let _listTokens = this._networkList.listeningNetwork.tokens;
-		for (let i = 0; i < _listTokens.length; i++) {
-		    console.log("findTokenByListener[listeningAddress[i]]: ",_listTokens[i].listeningAddress);
-            if (_listTokens[i].listeningAddress.toLowerCase() === addressListener.toLowerCase() && _listTokens[i].tokenContractAddress.toLowerCase() === addressContract.toLowerCase()) {
-				return i;
-            }
-		}
-		return null;
-	}
-    */
 
 	// init mail service
 	initMailer() {
@@ -1052,5 +1073,41 @@ module.exports = class daemon {
 			console.error('Error Email sent: ', error);
 		}
 	}
+
+    /*
+	// find Network by name
+	// networkName: name of the network to find
+	// return: network index in network list or null on error
+	findNetworkByName(networkName) {
+		//console.log("-- findNetworkByName --");
+		for (let i = 0; i < this._networkList.networks.length; i++) {
+			if (this._networkList.networks[i].networkName.toLowerCase() === networkName.toLowerCase()) {
+				return i;
+			}
+		}
+		return null;
+	}
+    */
+
+    /*
+	// find token index by Listener
+	// addressListener: listener address of the token to find
+	// addressContract: contract address of the token to find
+	// return: token index in tokens list or null on error
+    findTokenByListener(addressListener, addressContract) {
+		//console.log("-- findTokenByListener --");
+		//console.log("addressListener: ",addressListener);
+		//console.log("addressContract: ",addressContract.length);
+
+        let _listTokens = this._networkList.listeningNetwork.tokens;
+		for (let i = 0; i < _listTokens.length; i++) {
+		    console.log("findTokenByListener[listeningAddress[i]]: ",_listTokens[i].listeningAddress);
+            if (_listTokens[i].listeningAddress.toLowerCase() === addressListener.toLowerCase() && _listTokens[i].tokenContractAddress.toLowerCase() === addressContract.toLowerCase()) {
+				return i;
+            }
+		}
+		return null;
+	}
+    */
 
 }

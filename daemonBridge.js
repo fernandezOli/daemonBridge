@@ -34,6 +34,7 @@ try {
 	if(error !== undefined) console.error(error);
 	exit(1);
 }
+
 if(daemon === null) {
 	console.error("❌ ERROR lauching daemon (unknown error)");
 	exit(2);
@@ -43,7 +44,7 @@ console.log('');
 console.log("Launching daemon at:", new Date().toString());
 console.log('');
 
-let title = "Daemon Bridge - v0.1.0-mono-alpha";
+let title = "Daemon Bridge - v0.2.0-mono";
 let subTitle1 = "Started on port: " + httpServerPort;
 let subTitle2 = "Network: " + daemon.getNetworkName();
 let maxLength = title.length;

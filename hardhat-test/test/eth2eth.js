@@ -2,33 +2,22 @@ const ethers = require('ethers');
 require('dotenv').config()
 const { expect } = require("chai");
 
-const daemonAddress = "http://localhost:3001/";
+const serverAddress = "http://localhost:3001/";
+
 const fromNetworkName = "Sepolia";
 const toNetworkName = "Optimism Sepolia";
-const fromTokenName = "LINK";
-const toTokenName = "LINK";
+const fromTokenName = "ETH";
+const toTokenName = "ETH";
 let userTest = 4; // 0 - all tests, 1 - transfert test only, 2 - max test only, 3 - min test only, 4 - minNoRefund test only, 5 - no tests
-
-const abi = [
-	"function decimals() view returns(uint)",
-	"function balanceOf(address) view returns(uint)",
-	"function transfer(address to, uint amount) returns(bool)"
-];
 
 let loadedConfig = null;
 
-let networkId = null;
+let networkId = null; // network index to test
 let toNetworkId = null; // destination network index
 let testToken = null; // Token to test
 
-let providerSend = null; // source network
-let providerReceive = null; // destination network
-let contractSendTokenAddress = null; // source token
-let contractReceiveTokenAddress = null; // destination token
-let contractSend =  null;
-let contractReceive =  null;
-let contractSendDecimals = 18; // source token decimals
-let contractReceiveDecimals = 18; // destination token decimals
+let providerSend = null; // provider source network
+let providerReceive = null; // provider destination network
 
 let signerReceive = null; // listener
 let signerSender = null; // address who send token
@@ -38,27 +27,26 @@ const maxTime = 20;
 
 let signer_balance = null;
 let signer_receive_balance = null;
-let initial_balance_of_emit_token = null;
-let initial_balance_of_receiver = null;
+let receiver_balance = null;
 //let gasPrice = null;
 
-const title = "*** Test token transfer from " + fromNetworkName + " to " + toNetworkName + " ***";
+const title = "*** Test native transfer from " + fromNetworkName + " to " + toNetworkName + " ***";
 const stars = "*".repeat(title.length);
 
 describe("\n" + stars + "\n" + title + "\n" + stars, function () {
-    before(async function () {
+	before(async function () {
 		//console.log("before");
 
-        // check if daemon is running
+		// Check if daemon is running
 		try {
-			await fetch(daemonAddress);
+			await fetch(serverAddress);
 		} catch(error) {
 			expect(true, "❌ localhost Error, daemon not started !").to.be.false;
 		}
 
 		// Try to get json
 		try {
-            const response = await fetch(daemonAddress + "json");
+            const response = await fetch(serverAddress + "json");
             if (!response.ok) {
                 expect(true, "❌ localhost Error loading configuration, Response status:",response.status).to.be.false;
             }
@@ -71,12 +59,12 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
         networkId = findNetworkByName(loadedConfig.networks, fromNetworkName);
 		expect(networkId !== null, "❌ Error network name not found: " + fromNetworkName + " !").to.be.true;
 
-        toNetworkId = findNetworkByName(loadedConfig.networks, toNetworkName);
-		expect(toNetworkId !== null, "❌ Error network name not found: " + toNetworkName + " !").to.be.true;
+		toNetworkId = findNetworkByName(loadedConfig.networks, toNetworkName);
+		expect(toNetworkId !== null, "❌ Error network name not found !").to.be.true;
 
-        const testTokenIndex = findTokenByName(loadedConfig.tokensList, toNetworkName, fromTokenName, toTokenName);
+        const testTokenIndex = findTokenByName(loadedConfig.listeningNetwork.nativeTokens, toNetworkName);
 		expect(testTokenIndex !== null, "❌ Error listener for token name not found !").to.be.true;
-		testToken = loadedConfig.tokensList[testTokenIndex];
+		testToken = loadedConfig.listeningNetwork.nativeTokens[testTokenIndex];
 		expect(testToken.activated === true, "❌ Error token not activated !").to.be.true;
 
         providerSend = await getValidProvider(loadedConfig.networks[networkId], true);
@@ -84,14 +72,6 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 
         providerReceive = await getValidProvider(loadedConfig.networks[toNetworkId], true);
         if (providerReceive === null) throw '❌ No valid RPC_URL found for network: ' + toNetworkName;
-
-		contractSendTokenAddress = testToken.tokenContractAddress;
-		contractReceiveTokenAddress = testToken.toTokenContractAddress;
-        contractSend = new ethers.Contract(contractSendTokenAddress, abi, providerSend);
-        contractReceive = new ethers.Contract(contractReceiveTokenAddress, abi, providerReceive);
-
-		contractSendDecimals = testToken.tokenDecimals;
-		contractReceiveDecimals = testToken.toTokenDecimals;
 
 		signerReceive = testToken.listeningAddress;
 
@@ -107,34 +87,31 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 	beforeEach(async function () {
 		//console.log("beforeEach");
 
-		// get initial network balance
-        signer_balance = await providerSend.getBalance(signerSender.address); // balance In Wei { BigNumber: "37426320346873870455" }
-        signer_receive_balance = await providerReceive.getBalance(signerReceive);
-        // get initial token balance
-        initial_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
-        initial_balance_of_receiver = await contractReceive.balanceOf(signerReceive);
+		// get and check initial network balance
+		signer_balance = await providerSend.getBalance(signerSender.address);
+		signer_receive_balance = await providerReceive.getBalance(signerSender.address);
+		receiver_balance = await providerReceive.getBalance(signerReceive);
 
 		// check initial network balance
-        expect((signer_balance.gt(ethers.BigNumber.from(ethers.utils.parseEther("0.1")))), "❌ Sender Not enough network coins [" + fromNetworkName + "] !").to.be.true;
-        expect((signer_receive_balance.gt(ethers.BigNumber.from(ethers.utils.parseEther("0.1")))), "❌ Receiver Not enough network coins [" + toNetworkName + "] !").to.be.true;
+		expect((signer_balance.gt(ethers.BigNumber.from(ethers.utils.parseEther("0.1")))), "❌ Sender Not enough network coins ["+fromNetworkName+"] to pay fees !").to.be.true;
+		expect((receiver_balance.gt(ethers.BigNumber.from(ethers.utils.parseEther("0.1")))), "❌ Receiver Not enough network coins ["+toNetworkName+"] to pay fees !").to.be.true;
 	});
 
-	describe("-- Test token " + fromNetworkName + "/" + fromTokenName + " To " + toNetworkName + "/" + toTokenName + " --", function () {
-		if (userTest === 0 || userTest === 1) it("** Test transfert token **", async function () {
-			console.log("      - ** Test transfert token **");
+	describe("-- Test " + fromNetworkName + "/" + fromTokenName + " To " + toNetworkName + "/" + toTokenName + " --", function () {
+		if (userTest === 0 || userTest === 1) it("** Test transfert ETH **", async function () {
+			console.log("      - ** Test transfert ETH **");
 
-            const result = await sendToken(parseFloat("1.0"));
+            const result = await sendToken(parseFloat("0.1"));
 
             if(result.error === 1 ) expect(true, "❌ Error max waiting time !").to.be.false;
             if(result.error === 2 ) expect(true, "❌ Refund !!").to.be.false;
             if(result.error === 3 ) expect(true, "❌ No tokens received !!!").to.be.false;
 
-            console.log("✅ " + toTokenName + " received: " + ethers.utils.formatUnits(result.totReceived, contractReceiveDecimals) + ", fees: " + ethers.utils.formatUnits(result.totFees, contractReceiveDecimals));
+            console.log("✅ " + toTokenName + " received: " + ethers.utils.formatEther(result.totReceived.toString()) + ", fees: " + ethers.utils.formatEther(result.totFees.toString()));
+		}).timeout(60000);
 
-        }).timeout(60000);
-
-        if (userTest === 0 || userTest === 2) it("** Test max token **", async function () {
-			console.log("      - ** Test max token **");
+		if (userTest === 0 || userTest === 2) it("** Test max ETH **", async function () {
+			console.log("      - ** Test max ETH **");
 
             const result = await sendToken(parseFloat(testToken.max) * 2);
 
@@ -143,11 +120,10 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
             if(result.error === 3 ) expect(true, "❌ No Refund !!!").to.be.false;
 
 			console.log("✅ Tokens refunded");
+		}).timeout(60000);
 
-        }).timeout(60000);
-
-        if (userTest === 0 || userTest === 3) it("** Test min token **", async function () {
-			console.log("      - ** Test min token **");
+		if (userTest === 0 || userTest === 3) it("** Test min ETH **", async function () {
+			console.log("      - ** Test min ETH **");
 
             const result = await sendToken(parseFloat(testToken.min));
 
@@ -155,20 +131,18 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
             if(result.error === 0 ) expect(true, "❌ Tokens received !!").to.be.false;
             if(result.error === 3 ) expect(true, "❌ No Refund !!!").to.be.false;
 
-			console.log("✅ Tokens " + fromTokenName + " refunded");
+			console.log("✅ " + fromTokenName + " refunded");
+		}).timeout(60000);
 
-        }).timeout(60000);
-
-		if (userTest === 0 || userTest === 4) it("** Test minNoRefund token **", async function () {
-			console.log("      - ** Test minNoRefund token **");
+		if (userTest === 0 || userTest === 4) it("** Test minNoRefund ETH **", async function () {
+			console.log("      - ** Test minNoRefund ETH **");
 
             const result = await sendToken(parseFloat(testToken.minNoRefund));
 
             if(result.error === 0 ) expect(true, "❌ Tokens received !!").to.be.false;
-            if(result.error === 2 ) expect(true, "❌ Refund !!").to.be.false;
+            if(result.error === 2 ) expect(true, "❌ Refund !!!").to.be.false;
 
 			console.log("✅ Tokens NOT refunded");
-
 		}).timeout(60000);
 	});
 });
@@ -177,47 +151,41 @@ describe("\n" + stars + "\n" + title + "\n" + stars, function () {
 // amount: amount to be send by the sender
 // return: object {error, totReceived, totFees}
 async function sendToken(amount) {
-    //console.log("-- sendToken --");
-    let convertAmount = amount * testToken.conversionRateTokenBC1toTokenBC2; // Convertion rate
+    let convertAmount = amount * testToken.conversionRateBC1toBC2; // Convertion rate
 
-    const initial_balance_of_emit_token_wei = ethers.utils.parseEther(ethers.utils.formatUnits(initial_balance_of_emit_token, contractSendDecimals));
-    const initial_balance_of_receiver_wei = ethers.utils.parseEther(ethers.utils.formatUnits(initial_balance_of_receiver, contractReceiveDecimals));
-
-    // check token balances
-    expect(initial_balance_of_emit_token_wei.gt(ethers.utils.parseEther(amount.toString())), "❌ Sender not enough tokens !").to.be.true;
-    expect(initial_balance_of_receiver_wei.gt(ethers.utils.parseEther(convertAmount.toString())), "❌ Receiver not enough tokens !").to.be.true;
-    const initial_balance_of_receive_token = await contractReceive.balanceOf(signerSender.address);
+    // check balances
+    expect(signer_balance.gt(ethers.utils.parseEther(amount.toString())), "❌ Sender not enough coins !").to.be.true;
+    expect(receiver_balance.gt(ethers.utils.parseEther(convertAmount.toString())), "❌ Receiver not enough coins !").to.be.true;
 
     console.log("Sending: "+ amount.toString() + " " + fromTokenName + ", Receive: " + convertAmount.toString() + " " + toTokenName + " ...");
 
-    const transactionTx = await contractSend.connect(signerSender).transfer(signerReceive, ethers.utils.parseUnits(amount.toString(),contractSendDecimals));
+    const transactionTx = await signerSender.sendTransaction({ to: signerReceive, value: ethers.utils.parseEther(amount.toString()) });
     console.log("transactionTx: ", transactionTx.hash);
     console.log("Waiting transaction");
     await transactionTx.wait(1); // error on wait(1) => change rpc_url
 
-    let new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
-    expect(new_balance_of_emit_token, "❌ Token balance unchanged !").to.lt(initial_balance_of_emit_token);
+    let new_signer_balance = await providerSend.getBalance(signerSender.address);
+    expect(new_signer_balance, "❌ Balance unchanged, transaction error (maybe rpc_url ?)").to.lt(signer_balance);
 
     // wait for exchange or refund
     process.stdout.write("Waiting transfert ");
-    let new_balance_of_receive_token = 0;
+    let new_signer_receive_balance = 0;
+    let new_signer_balance_2 = ethers.BigNumber.from(0);
     let i = 0;
     while (true) {
         await sleep(waitingTime);
-        new_balance_of_receive_token = await contractReceive.balanceOf(signerSender.address);
-        if (!new_balance_of_receive_token.eq(initial_balance_of_receive_token)) break;
-        new_balance_of_emit_token = await contractSend.balanceOf(signerSender.address);
-        if(new_balance_of_emit_token.eq(initial_balance_of_emit_token)) break;
+        new_signer_receive_balance = await providerReceive.getBalance(signerSender.address);
+        if (!new_signer_receive_balance.eq(signer_receive_balance)) break;
+        new_signer_balance_2 = await providerSend.getBalance(signerSender.address);
+        if(new_signer_balance_2.gt(new_signer_balance)) break;
         i++;
         if (i > maxTime) break;
         process.stdout.write(".");
     }
     console.log("");
 
-    let totReceived = new_balance_of_receive_token - initial_balance_of_receive_token;
-    totReceived = ethers.utils.parseUnits(ethers.utils.formatUnits(totReceived.toString(), contractReceiveDecimals), contractReceiveDecimals);
-    convertAmount = ethers.utils.parseUnits(convertAmount.toString(), contractReceiveDecimals);
-    const totFees = convertAmount.sub(totReceived);
+    const totReceived = new_signer_receive_balance - signer_receive_balance;
+    const totFees = ethers.utils.parseEther(convertAmount.toString()).toBigInt() - BigInt(totReceived);
 
     result = {};
     result.totReceived = totReceived;
@@ -227,11 +195,11 @@ async function sendToken(amount) {
         result.error = 1; // max waiting time
         return result;
     }
-    if(new_balance_of_emit_token.eq(initial_balance_of_emit_token)) {
+    if(new_signer_balance_2.gt(new_signer_balance)) {
         result.error = 2; // Refund
         return result;
     }
-    if(new_balance_of_receive_token.lte(initial_balance_of_receive_token)) {
+    if(new_signer_receive_balance.lte(signer_receive_balance)) {
         result.error = 3; // No tokens received
         return result;
     }
@@ -255,12 +223,10 @@ function findNetworkByName(networkList, networkName) {
 // find token by name
 // tokenList: list of the token
 // networkName: name of the network to find
-// fromToken: name of the from token to find
-// toToken: name of the to token to find
 // return: token index in token list or null on error
-function findTokenByName(tokenList, networkName, fromToken, toToken) {
+function findTokenByName(tokenList, networkName) {
 	for (let i = 0; i < tokenList.length; i++) {
-		if (tokenList[i].toNetwork === networkName && tokenList[i].tokenName === fromToken && tokenList[i].toToken === toToken) {
+		if (tokenList[i].toNetwork === networkName) {
 			return i;
 		}
 	}
