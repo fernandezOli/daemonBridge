@@ -2,10 +2,15 @@ const http = require('http');
 const { exit } = require('process');
 
 const daemonBridge = require('./daemon.js');
-let daemon = null;
+const clusterRaft = require('./clustering/cluster.js');
 
+let daemon = null;
 let httpServerPort = 3001; // default port
 let configFile = "./config/config.json"; // default config file
+
+let cluster = null;
+let clustering = true;
+let clusterConfig = "./clustering/cluster.json"; // default cluster config file
 
 // load options
 if(process.argv.length > 2) {
@@ -20,9 +25,27 @@ if(process.argv.length > 2) {
             case '-c':
                 configFile = params[1].trim();
               break;
+              case '-r':
+                clustering = true;
+                clusterConfig = params[1].trim();
+              break;
             default:
               console.log("❌ Unknown option: " + params[0]);
         }
+    }
+}
+
+// launch the clustering
+if (clustering) {
+    try {
+        cluster = new clusterRaft(clusterConfig);
+        cluster.startServer();
+        console.log('Cluster started');
+        console.log('');
+    } catch (error) {
+        console.error('❌ ERROR lauching cluster');
+        if (error !== undefined) console.error(error);
+        exit(1);
     }
 }
 
@@ -32,7 +55,7 @@ try {
 } catch(error) {
 	console.error('❌ ERROR lauching daemon');
 	if(error !== undefined) console.error(error);
-	exit(1);
+	exit(2);
 }
 
 if(daemon === null) {

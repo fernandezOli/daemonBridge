@@ -1,0 +1,18 @@
+{
+	"general": {
+		"project": "Cluster for Deamon Bridge",
+		"version": "1.0"
+	},
+	"address": "0x6606dB68735D3cbD616B3455aA0481B766aDB926",
+	"privateKey": "CLUSTER_PK_1",
+    "url": "tcp://127.0.0.1:4001",
+	"port": 4001,
+	"clusters": [
+		{
+            "address": "0x0006dB68735D3cbD616B3455aA0481B766aDB000",
+			"url": "tcp://127.0.0.1:4002",
+			"port": "4002",
+			"type": ""
+		}
+	]
+}
